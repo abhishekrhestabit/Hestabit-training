@@ -43,7 +43,7 @@ now there can be multiple shells, ours is bin/bash i.e Bash, which is optimized 
 to find the shell we used echo $SHELL, where echo is used for printing and $SHELL indicates what to print. 
 
 
-### c) Node binary path
+### c) Node binary path && Task 2 
 
 ![/home/abhishekrai/.nvm/versions/node/v24.12.0/bin/node](images/which_node.png)
 
