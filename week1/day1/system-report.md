@@ -49,6 +49,7 @@ to find the shell we used echo $SHELL, where echo is used for printing and $SHEL
 
 
 ![Switch](images/which_node_with_nvm_switch.png)
+
 This image shows how which node can be used with switching node versions from one version to another. Here both the --lts and the latest node version are same, so it's not particularly visible. This is from Task 2, part 2.
 
 
