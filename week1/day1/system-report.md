@@ -1,10 +1,10 @@
-#Day-1 
+# Day-1 
 
-##Tasks
+## Tasks
 
-1. Identify and document
+## 1. Identify and document
 
-## a) OS Version 
+### a) OS Version 
 
 ![OS image](images/OS.png)
 
@@ -27,7 +27,7 @@ Also, if we just need the version we can use "lsb_release -r"
 ###Note 2: LSB module is a historical concept where it was a set of specification that made sure that a program written in one linux distribution, works on other distributions as well. Modern Linux solves this using containerization.
  
 
-## b) Current shell
+### b) Current shell
 
 ![current_shell](images/shell.png)
 
@@ -43,7 +43,7 @@ now there can be multiple shells, ours is bin/bash i.e Bash, which is optimized 
 to find the shell we used echo $SHELL, where echo is used for printing and $SHELL indicates what to print. 
 
 
-## c) Node binary path
+### c) Node binary path
 
 ![/home/abhishekrai/.nvm/versions/node/v24.12.0/bin/node](images/which_node.png)
 
@@ -64,7 +64,7 @@ so it helps us debug version conflicts, ensure correct setups for projects avoid
 we used which node for this. Another command we can use is command -v node
 
 
-## d) NPM global installation path
+### d) NPM global installation path
 ![/home/abhishekrai/.nvm/versions/node/v24.12.0](images/global_node.png)
 
 The NPM global installation path is the directory on your system where npm installs packages when you use the -g flag. Basically the location on dist where globally installed npm tools live.
@@ -76,7 +76,7 @@ to install something globally you use -g tag.
 we used the npm config get prefix command to get our global istallation path. This command asks npm's configuration system for the prefix path for global installation '
 
 
-## e) All PATH entries that include "node" or "npm"     
+### e) All PATH entries that include "node" or "npm"     
 
 ![/home/abhishekrai/.nvm/versions/node/v24.12.0/bin](images/all_path.png)
 
@@ -90,4 +90,25 @@ How does this command works?
 
 echo $PATH Prints the full PATH as a single line, tr ':' '\n'Converts it into a readable list, grep -Ei 'node|npm', Filters only lines containing node or npm
 
+## 3. Create script introspect.js that prints:
+
+OS:
+Architecture:
+CPU Cores:
+Total Memory:
+System Uptime:
+Current Logged User:
+Node Path:
+
+![introspect](images/introspect.png)
+
+## 4. STREAM vs BUFFER exercise (performance benchmark)
+○ Create a large test file (50MB+)
+○ Read file using both:
+■ fs.readFile (Buffer)
+■ Stream (fs.createReadStream)
+○ Capture execution time + memory usage
+
+![Stream vs Buffer](images/streamvsbuffer.png)
+![Stream vs Buffer](images/benchmark.png)
 
