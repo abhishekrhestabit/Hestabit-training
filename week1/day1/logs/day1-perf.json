@@ -1,0 +1,29 @@
+[
+  {
+    "timestamp": "2026-01-06T12:07:49.505Z",
+    "bufferRead": {
+      "executionTimeMs": 36.349442,
+      "memoryBefore": {
+        "rssMB": 42.61,
+        "heapUsedMB": 3.52
+      },
+      "memoryAfter": {
+        "rssMB": 103.11,
+        "heapUsedMB": 3.56
+      },
+      "fileSizeMB": 60
+    },
+    "streamRead": {
+      "executionTimeMs": 60.418332,
+      "memoryBefore": {
+        "rssMB": 103.11,
+        "heapUsedMB": 3.56
+      },
+      "memoryAfter": {
+        "rssMB": 75.82,
+        "heapUsedMB": 4.15
+      },
+      "fileSizeMB": 60
+    }
+  }
+]
