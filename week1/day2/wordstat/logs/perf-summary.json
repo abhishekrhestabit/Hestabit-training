@@ -1,0 +1,14 @@
+[
+  {
+    "concurrency": 1,
+    "time_ms": 190.07993
+  },
+  {
+    "concurrency": 4,
+    "time_ms": 187.526528
+  },
+  {
+    "concurrency": 8,
+    "time_ms": 206.411078
+  }
+]
