@@ -58,7 +58,7 @@ Stream reads data in chunks, which is more memory-efficient and suitable for rea
 
 ## Day 3
 
-- In day 3 we focused on **Git mastery and recovery from mistakes**, instead of just basic version control commands.
+- In day 3 we focused on Git mastery and recovery from mistakes, instead of just basic version control commands.
 
 We created a repository with multiple commits and intentionally introduced a bug in one of the commits to simulate a real failure.
 
