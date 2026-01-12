@@ -2,7 +2,7 @@
 
 ## Day 1
 
-- in day 1 we learnt about terminal navigation and system inspection, as well as, a deep understanding of PATH, environment variables, Node runtime
+- In day 1 we learnt about terminal navigation and system inspection, as well as, a deep understanding of PATH, environment variables, Node runtime
 
 We learnt what is teminal navigation, why it is important as well as how we can do it and what are the commands needed for terminal navigation and operations.
 
@@ -82,8 +82,6 @@ We created a repository with multiple commits and intentionally introduced a bug
 
 - In day 4 we focused on understanding HTTP and APIs through investigation, rather than using tools blindly.
 
-We learned how to inspect API behavior using the terminal instead of relying only on Postman.
-
 - We performed DNS lookup and network path tracing using nslookup and traceroute to understand how requests reach a server.
 
 - We used curl to send HTTP requests and inspect verbose responses, including headers, status codes, and pagination parameters.
@@ -103,7 +101,7 @@ We learned how to inspect API behavior using the terminal instead of relying onl
 
 - In day 5 we focused on automation and building safeguards to prevent bad commits from entering the repository.
 
-We created a validation shell script to ensure required project structure exists and that configuration files are valid.
+- We created a validation shell script to ensure required project structure exists and that configuration files are valid.
 
 - We integrated ESLint and Prettier to enforce code quality and formatting automatically.
 
