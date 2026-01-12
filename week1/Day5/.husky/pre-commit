@@ -1,0 +1,3 @@
+
+npm run lint
+./scripts/validate.sh
