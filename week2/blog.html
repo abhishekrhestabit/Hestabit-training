@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Martial Blog - Technical analysis, training logs, and practical advice for martial artists.">
+    <title>Martial Blog | Technical Insights</title>
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <h1>MARTIAL BLOG.</h1>
+        </div>
+        <nav aria-label="Main Menu">
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Articles</a></li>
+                <li><a href="#">Interviews</a></li>
+                <li><a href="#">Resources</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+
+        <section aria-label="Featured Articles">
+            <ul>
+                <li>
+                    <article>
+                        <img src="images/striking.webp" alt="Muay Thai fighters clinching in ring">
+                        <p><strong>STRIKING</strong></p>
+                        <h3><a href="#">Muay Thai Fundamentals</a></h3>
+                        <p><small>Editor | Jan 12, 2026</small></p>
+                    </article>
+                </li>
+
+                <li>
+                    <article>
+                        <img src="images/grappling.jpeg" alt="Brazilian Jiu-Jitsu rolling session">
+                        <p><strong>GRAPPLING</strong></p>
+                        <h3><a href="#">BJJ Position Hierarchy</a></h3>
+                        <p><small>Editor | Jan 10, 2026</small></p>
+                    </article>
+                </li>
+
+                <li>
+                    <article>
+                        <img src="images/yoga.jpeg" alt="Person meditating in dojo">
+                        <p><strong>RECOVERY</strong></p>
+                        <h3><a href="#">Active Recovery Methods</a></h3>
+                        <p><small>Editor | Jan 08, 2026</small></p>
+                    </article>
+                </li>
+            </ul>
+        </section>
+
+        <section aria-label="Newsletter Subscription">
+            <h2>Weekly Insights</h2>
+            <p>Practical advice for training and recovery. FREE!! </p>
+            <button>SUBSCRIBE</button>
+        </section>
+
+        <section>
+
+            <div>
+
+                <article>
+                    <br>
+
+                    <img src="images/white-belt.webp" alt="White belt tying their belt for the first time">
+                    <br>
+                    <h2><a href="#">Managing Expectations as a Beginner</a></h2>
+                    <p><small>Editor | Jan 12, 2026 | 45 Comments</small></p>
+                    <p>
+                        Starting on a martial art journey involves a steep learning curve. This post discusses how to
+                        set
+                        realistic goals for your first year and avoid burnout by focusing on attendance rather than
+                        performance. Performance is the byproduct of consistency. if you just show up to the gym
+                        everyday,
+                        you will be ahead of most of the people, this post will tell you how to do exactly that.
+                    </p>
+                    <p>
+                        <strong>Tags:</strong> Discipline, Beginners |
+                        <strong>Share:</strong> <a href="#">Facebook</a>, <a href="#">Twitter</a>
+                    </p>
+                </article>
+
+                <hr>
+
+                <article>
+                    <img src="images/meal.jpg" alt="Healthy meal prep with chicken and rice">
+                    <br>
+                    <a href="#">NUTRITION</a>
+                    <h2><a href="#">Basic Macronutrients for Grapplers</a></h2>
+                    <p><small>Guest Contributor | Jan 05, 2026 | 12 Comments</small></p>
+                    <p>
+                        Proper fueling supports sustained energy during sparring. We break down simple carbohydrate
+                        and protein timing strategies for evening and morning training sessions. Without the proper fuel
+                        your body will collapse...
+                    </p>
+                    <p>
+                        <strong>Tags:</strong> Health, Diet |
+                        <strong>Share:</strong> <a href="#">Facebook</a>, <a href="#">Twitter</a>
+                    </p>
+                </article>
+
+                <br>
+                <button aria-label="Load more blog posts">View All Post</button>
+            </div>
+
+            <aside>
+
+                <section>
+                    <h3>Search</h3>
+                    <!-- FORM WITH SELECT AND VALIDATION -->
+                    <form action="#" method="GET">
+
+                        <!-- 1. The SELECT Dropdown -->
+                        <label for="category-select" style="display:none;">Filter by Category</label>
+                        <select id="category-select" name="category">
+                            <option value="all">All Categories</option>
+                            <option value="striking">Striking</option>
+                            <option value="grappling">Grappling</option>
+                            <option value="gear">Gear Reviews</option>
+                        </select>
+                        <br><br>
+
+                        <!-- 2. The INPUT with VALIDATION (required, minlength) -->
+                        <label for="search-box" style="display:none;">Search Blog</label>
+                        <input type="text" id="search-box" name="q" placeholder="TYPE KEYWORD..." required
+                            minlength="3">
+                        <br>
+                        <br>
+                        <button type="submit" aria-label="Search button">SEARCH</button>
+                    </form>
+                </section>
+
+                <section>
+                    <h3>Latest</h3>
+                    <ul>
+                        <li>
+                            <a href="#">Gi vs No-Gi Differences</a>
+                            <br><small>Jan 12, 2026</small>
+                        </li>
+                        <li>
+                            <a href="#">Roundhouse Mechanics</a>
+                            <br><small>Jan 10, 2026</small>
+                        </li>
+                        <li>
+                            <a href="#">Hygiene Standards</a>
+                            <br><small>Jan 08, 2026</small>
+                        </li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>Categories</h3>
+                    <ul>
+                        <li><a href="#">- Striking </a></li>
+                        <li><a href="#">- Grappling </a></li>
+                        <li><a href="#">- Conditioning </a></li>
+                        <li><a href="#">- Gear Reviews </a></li>
+                        <li><a href="#">- Analysis </a></li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>Tags</h3>
+                    <nav aria-label="Topics Tag Cloud">
+                        <a href="#">Drills</a> |
+                        <a href="#">Sparring</a> |
+                        <a href="#">Theory</a> |
+                        <a href="#">Cardio</a> |
+                        <a href="#">Recovery</a>
+                    </nav>
+                </section>
+
+            </aside>
+
+        </section>
+
+    </main>
+
+    <footer>
+        <nav aria-label="Social Media">
+            <ul>
+                <li><a href="#">Instagram</a></li>
+                <li><a href="#">Twitter</a></li>
+            </ul>
+        </nav>
+        <p>
+            &copy; 2026 MARTIAL BLOG.
+        </p>
+    </footer>
+
+</body>
+
+</html>
