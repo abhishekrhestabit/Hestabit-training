@@ -295,12 +295,13 @@
             color: var(--text-muted);
             gap: 10px;
         }
+        
+        /* This is used for scaling the graphimage according to container */
 
          .graph-img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            /* Changed from cover to contain */
             opacity: 0.9;
             transition: opacity 0.3s;
         }
