@@ -224,10 +224,6 @@
 
         .task-list { list-style: none; overflow-y: auto; flex: 1; padding-right: 10px; }
         
-        /* Custom Scrollbar */
-        .task-list::-webkit-scrollbar { width: 6px; }
-        .task-list::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 10px; }
-
         .task-item {
             display: flex;
             align-items: center;
