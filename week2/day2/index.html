@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abhishek's Dev Dashboard</title>
+
+    <!-- This links to the CSS file you have open -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<body>
+
+    <main class="dashboard-grid">
+
+        <!-- 1. LOGO HEADER -->
+        <header class="panel box-header">
+            <i data-lucide="code-2" class="logo-icon"></i>
+            Abhishek.Hestabit
+        </header>
+
+        <!-- 2. NAVIGATION PILLS -->
+        <nav class="box-menu">
+            <a href="#" class="nav-link active"><i data-lucide="layout-dashboard" size="16"></i> Overview</a>
+            <a href="#" class="nav-link"><i data-lucide="check-square" size="16"></i> Tasks</a>
+            <a href="#" class="nav-link"><i data-lucide="file-text" size="16"></i> Docs</a>
+        </nav>
+
+        <!-- 4. HERO SECTION -->
+        <section class="panel box-hero">
+            <div class="hero-badge">
+                <span style="width: 8px; height: 8px; background: #4ADE80; border-radius: 50%;"></span>
+                System Online
+            </div>
+            <h1>Good Afternoon, Trainee.</h1>
+            <p>You have 4 active tasks. Grid layout mastery is 85% complete.</p>
+        </section>
+
+        <!-- 5. MAIN TASK LIST (Static) -->
+        <section class="panel box-main">
+            <div class="section-header">
+                <h3>Priority Tasks</h3>
+                <span class="count-badge">3 Active</span>
+            </div>
+
+            <ul class="task-list">
+                <!-- Task 1 -->
+                <li class="task-item">
+                    <div class="checkbox-custom"></div>
+                    <span class="task-content">Complete CSS Grid Module</span>
+                    <span class="tag learning">Learning</span>
+                </li>
+                <!-- Task 2 -->
+                <li class="task-item">
+                    <div class="checkbox-custom"></div>
+                    <span class="task-content">HestaBit Documentation</span>
+                    <span class="tag work">Work</span>
+                </li>
+                <!-- Task 3 -->
+                <li class="task-item completed">
+                    <div class="checkbox-custom"></div>
+                    <span class="task-content">Solve "Two Sum"</span>
+                    <span class="tag done">Done</span>
+                </li>
+                <!-- Task 4 -->
+                <li class="task-item">
+                    <div class="checkbox-custom"></div>
+                    <span class="task-content">Push updates to GitHub</span>
+                    <span class="tag work">Work</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 6. IMAGE PLACEHOLDER -->
+        <aside class="panel box-image">
+            <img src="images/Photo.jpeg" alt="Activity Graph" class="graph-img">
+        </aside>
+
+        <!-- 7. TIMER -->
+        <aside class="panel box-timer">
+            <div class="timer-display">25:00</div>
+            <div class="timer-label">Focus Session</div>
+            <div class="timer-controls">
+                <button class="btn-icon"><i data-lucide="rotate-ccw" size="16"></i></button>
+                <button class="btn-icon" style="background: var(--accent-main); color: white;"><i data-lucide="play"
+                        size="16"></i></button>
+            </div>
+        </aside>
+
+        <!-- 8. FOOTER -->
+        <footer class="box-footer">
+            "Focus and consistency are the building block of competence in any field." - Abhishek
+        </footer>
+
+    </main>
+
+    <!-- Rendering Icons Only -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

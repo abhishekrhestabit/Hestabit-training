@@ -1,0 +1,387 @@
+        /*:root contains all the colors that we will be using*/
+        :root {
+            /* Defaulting to White/Blue Theme (Modernized) */
+            --bg-body: #F3F4F6;
+            --bg-card: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --accent-main: #4F46E5; /* Indigo 600 */
+            --accent-glow: rgba(79, 70, 229, 0.15);
+            --border-color: #E5E7EB;
+            --success: #10B981;
+            
+            /* Spacing & shape */
+            --radius-xl: 24px;
+            --radius-md: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            
+            /* Gradient color for hero section */
+            --hero-gradient: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+        }
+
+        /* "*" is used for global reset, or hard reset. It applies to every single html element on the page. We set margin and padding 0 
+        to override the default margin or padding to 0.
+        Now by default css uses box-sizing content-box, which will create the margin only for content, but border box creates the margin for padding as well.
+        The font family is self evident (Updated to Inter for modern look)*/
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /*Now these are the css rules targeting the body tag. what we are doing here is 
+        1. applying themes using css variables that were set in :root 
+        2. set the dimension of the body to fit the whole visible screen   
+        3. setting the display to flex and aligning the elements to center. This increases the responsiveness greatly
+
+        Note: we added padding so that when the screen shrinks we can keep the elements from touching the screen borders. This again is for the responsiveness
+
+        so basically we are using this to set the color theme and center the elements to the screen*/
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center; /*Aligns items horizontally*/
+            align-items: center; /*Aligns items vertically*/
+            overflow: hidden; /* Prevents scroll on desktop for "App" feel */
+        }
+
+        /*Now this is the main class the dashboard-grid. This is the class for main tag so inside this we set the layout to grid
+        and then we devide it into 4 columns and 5 rows.
+        
+        We set the template areas to set the ratio for the elements we will be using according to the UI Layout.
+            
+            note: we keep the width fixed or max-width for better control on large screens*/
+        .dashboard-grid {
+            width: 90%;
+          
+            height: 90vh;
+            display: grid;
+            gap: 20px;
+            
+            /* Modern Bento proportions */
+            grid-template-columns: 280px 1fr 1fr 280px;
+            /* Updated rows: 3rd row split into two 1fr rows to allow Main to span while Image/Timer stack */
+            grid-template-rows: 80px 200px 1fr 1fr auto;
+            
+            /* Updated areas: Image top right, Timer bottom right */
+            grid-template-areas:
+                "header menu menu menu"
+                "hero hero hero hero"
+                "main main main image"
+                "main main main timer"
+                "footer footer footer footer";
+        }
+
+        /*Now in our html file we have used combinators with a common class panel. So any tag using panel parent class will have these basic css layouts applied to them*/
+        .panel {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl); /* Modern rounded corners */
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent-main);
+        }
+
+        /*Then we move on to the specific areas. We design it according to the asthetic we need. 
+
+        NOTE: We can make a single cell inside a grid flex. This is the best practice as this can help us in aligning a element inside the cell of the grid*/
+
+        /* 1. Header */
+        .box-header {
+            grid-area: header;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--accent-main);
+            letter-spacing: -0.5px;
+        }
+        .logo-icon { margin-right: 10px; }
+
+        /* 2. Menu */
+        .box-menu {
+            grid-area: menu;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; 
+            padding: 0 10px;
+            gap: 10px;
+            background: transparent; 
+            border: none;
+            box-shadow: none;
+        }
+
+        /* Links inside menu */
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 50px; /* Pill shape */
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: var(--bg-card);
+            color: var(--accent-main);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 3. Hero */
+        .box-hero {
+            grid-area: hero;
+            background: var(--hero-gradient);
+            color: white;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Decorative mesh circle */
+        .box-hero::after {
+            content: '';
+            position: absolute;
+            right: -50px;
+            top: -50px;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            filter: blur(40px);
+        }
+
+        .hero-badge {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            width: fit-content;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .box-hero h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+        
+        .box-hero p { opacity: 0.9; font-weight: 300; }
+
+        /* 4. Main Content */
+        .box-main {
+            grid-area: main;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .section-header h3 { font-size: 1.2rem; font-weight: 700; color: var(--text-main); }
+        .count-badge {
+            background: var(--accent-glow);
+            color: var(--accent-main);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .task-list { list-style: none; overflow-y: auto; flex: 1; padding-right: 10px; }
+        
+        /* Custom Scrollbar */
+        .task-list::-webkit-scrollbar { width: 6px; }
+        .task-list::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 10px; }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: var(--bg-body);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .task-item:hover {
+            border-color: var(--accent-main);
+            background: var(--bg-card);
+        }
+
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-muted);
+            border-radius: 6px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .task-content { flex: 1; font-weight: 500; font-size: 0.95rem; }
+        
+        .tag {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .tag.learning { background: #DBEAFE; color: #1E40AF; }
+        .tag.work { background: #FCE7F3; color: #9D174D; }
+        .tag.project { background: #FEF3C7; color: #92400E; }
+        .tag.done { background: #D1FAE5; color: #065F46; }
+
+        /* Completed State */
+        .task-item.completed { opacity: 0.6; }
+        .task-item.completed .checkbox-custom {
+            background: var(--accent-main);
+            border-color: var(--accent-main);
+        }
+        .task-item.completed .checkbox-custom::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+        }
+        .task-item.completed .task-content { text-decoration: line-through; }
+
+        /* 5. Image Placeholder */
+        .box-image {
+            grid-area: image;
+            background-color: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            gap: 10px;
+        }
+
+         .graph-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            /* Changed from cover to contain */
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        /* 6. Timer */
+        .box-timer {
+            grid-area: timer;
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+        
+        .timer-display {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        .timer-label { font-size: 0.8rem; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+        
+        .timer-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon {
+            background: var(--bg-body);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .btn-icon:hover { background: var(--accent-main); color: white; }
+
+        /* 7. Footer */
+        .box-footer {
+            grid-area: footer;
+            display: flex;
+            justify-content: center; /* Centered as per request */
+            align-items: center;
+            padding: 0 10px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        /* --- RESPONSIVE MOBILE VIEW --- */
+        @media (max-width: 900px) {
+            body { 
+                height: auto; 
+                display: block; 
+                padding: 20px;
+                overflow-y: auto;
+            }
+            .dashboard-grid {
+                width: 100%;
+                height: auto;
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                grid-template-areas:
+                    "header"
+                    "hero"
+                    "menu"
+                    "main"
+                    "image"
+                    "timer"
+                    "footer";
+                gap: 15px;
+            }
+            .box-menu { 
+                justify-content: center; /* Center on mobile */
+                overflow-x: auto; 
+                padding-bottom: 5px; 
+            }
+            .nav-link { white-space: nowrap; }
+            .box-main { min-height: 400px; }
+            .box-image, .box-timer { height: 200px; }
+            .box-header { padding: 15px; justify-content: center; }
+        }
