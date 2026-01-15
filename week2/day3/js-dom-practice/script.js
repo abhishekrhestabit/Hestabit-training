@@ -1,4 +1,10 @@
 //  1. DATA 
+/* so here we have declared a variable named faqData. It contains a array of objects, the ones inside {}. Each object represents a single faq content. 
+we are doing this for two main reasons 1. we don't need to code this in html which makes it cleaner. 2. In real scenarios these data will come from databases
+so hardcoding it here just emulates the behaviour. 
+
+This is also more convinient as in this code base i later wanted to add  likes and dislikes to every elment as it was not present before, so the process became much simpler 
+and organised when compared to editing it in html. To render it on the browser we are using a function called renderFAQ which we will talk about in a moment.*/ 
 const faqData = [
     {
         id: 1,
@@ -31,6 +37,9 @@ const faqData = [
 ];
 
 // 2. DOM ELEMENTS 
+/* Here we are making js variables that link directly to the html. We are using .getElementById method to pinpoint which tag or element we are using and then denoting them 
+with these variables.
+ */
 const container = document.getElementById('accordion-container');
 const sortSelect = document.getElementById('sort-select');
 const themeToggle = document.getElementById('theme-toggle');
@@ -38,6 +47,7 @@ const modal = document.getElementById('feedback-modal');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
 // 3. RENDER FUNCTION 
+/* This is the core of our project today. So we will understand it by deviding this code into three parts */
 function renderFAQ(data) {
     container.innerHTML = '';
 
