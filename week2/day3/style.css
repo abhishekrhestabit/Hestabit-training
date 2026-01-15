@@ -1,0 +1,393 @@
+/* 1. CSS VARIABLES (THEMING) */
+:root {
+    /* Light Theme Defaults */
+    --bg-body: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-header: #4f46e5;
+    --bg-header-dark: #312e81;
+    
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --text-inverse: #ffffff;
+    
+    --border-color: #e5e7eb;
+    --hover-bg: #f3f4f6;
+    
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --accent-pink: #db2777;
+    --accent-red: #ef4444; /* New for dislike */
+    
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius: 12px;
+    --transition-speed: 0.3s;
+}
+
+/* Dark Theme Overrides */
+body.dark {
+    --bg-body: #111827;
+    --bg-card: #1f2937;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border-color: #374151;
+    --hover-bg: #374151;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* 2. GLOBAL RESET & BASE STYLES */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+/* 3. CARD CONTAINER */
+.faq-card {
+    background-color: var(--bg-card);
+    width: 100%;
+    max-width: 700px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    transition: background-color var(--transition-speed), border-color var(--transition-speed);
+}
+
+/* 4. HEADER SECTION */
+.card-header {
+    background-color: var(--bg-header);
+    padding: 2rem;
+    color: var(--text-inverse);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+body.dark .card-header {
+    background-color: var(--bg-header-dark);
+}
+
+.header-content h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.header-content p {
+    opacity: 0.8;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0,0,0,0.2);
+    padding: 0.5rem;
+    border-radius: 8px;
+    gap: 0.75rem;
+    align-self: flex-start;
+}
+
+@media (min-width: 600px) {
+    .card-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .controls {
+        align-self: center;
+    }
+}
+
+select {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+.divider {
+    width: 1px;
+    height: 20px;
+    background-color: rgba(255,255,255,0.3);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: #fbbf24;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+.btn-icon:hover {
+    transform: scale(1.1);
+    color: white;
+}
+
+/* 5. ACCORDION LIST */
+.accordion-list {
+    border-top: 1px solid var(--border-color);
+}
+
+.accordion-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.accordion-item:last-child {
+    border-bottom: none;
+}
+
+.accordion-trigger {
+    width: 100%;
+    text-align: left;
+    padding: 1.25rem 2rem;
+    background: none;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-main);
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.accordion-trigger:hover {
+    background-color: var(--hover-bg);
+    color: var(--primary);
+}
+
+.accordion-trigger .icon-chevron {
+    transition: transform 0.3s ease;
+    color: var(--text-muted);
+}
+
+.accordion-trigger.active {
+    color: var(--primary);
+}
+
+.accordion-trigger.active .icon-chevron {
+    transform: rotate(180deg);
+    color: var(--primary);
+}
+
+.accordion-content {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    background-color: var(--hover-bg);
+}
+
+.accordion-content.open {
+    opacity: 1;
+}
+
+.content-inner {
+    padding: 1rem 2rem 1.5rem 2rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* --- UPDATED LIKE/DISLIKE SECTION --- */
+.like-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.like-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* New Wrapper for buttons and count */
+.vote-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: var(--bg-card); /* slight contrast box */
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.like-count {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums; /* prevents jitter when numbers change */
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Base style for both buttons */
+.btn-vote {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 4px;
+    border-radius: 50%;
+    color: var(--text-muted);
+}
+
+.btn-vote:hover {
+    background-color: var(--hover-bg);
+}
+
+/* Like Specifics */
+.btn-like:hover {
+    color: var(--accent-pink);
+}
+.btn-like.liked {
+    color: var(--accent-pink);
+}
+.btn-like.liked svg {
+    fill: currentColor;
+}
+
+/* Dislike Specifics */
+.btn-dislike:hover {
+    color: var(--accent-red);
+}
+/* Optional: Shake animation for dislike */
+.animate-shake {
+    animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+@keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+.animate-pop {
+    animation: pop 0.3s ease-in-out;
+}
+
+/* 6. MODAL */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-card {
+    background-color: var(--bg-card);
+    padding: 2rem;
+    border-radius: var(--radius);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 350px;
+    text-align: center;
+    transform: scale(0.9);
+    transition: transform 0.3s ease-out;
+}
+
+.modal-overlay.show .modal-card {
+    transform: scale(1);
+}
+
+.modal-icon {
+    width: 50px;
+    height: 50px;
+    background-color: #dcfce7;
+    color: #16a34a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+}
+
+.modal-text {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.btn-close {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-close:hover {
+    background-color: var(--primary-hover);
+}
+
+/* 7. FOOTER */
+.card-footer {
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+}

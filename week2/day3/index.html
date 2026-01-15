@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive FAQ Accordion</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons Library (Safe in head because it just loads the code, doesn't run it yet) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div class="faq-card">
+        <!-- Header -->
+        <div class="card-header">
+            <div class="header-content">
+                <h1>FAQ</h1>
+                <p>Vanilla JS & CSS DOM Practice</p>
+            </div>
+
+            <div class="controls">
+                <!-- Sort Dropdown -->
+                <select id="sort-select">
+                    <option value="default">Default Order</option>
+                    <option value="likes">Most Liked</option>
+                    <option value="dislikes">Most Disliked</option> <!-- NEW OPTION ADDED -->
+                </select>
+
+                <div class="divider"></div>
+
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" class="btn-icon" aria-label="Toggle Dark Mode">
+                    <i data-lucide="sun" id="icon-sun" class="hidden"></i>
+                    <i data-lucide="moon" id="icon-moon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- List Container -->
+        <div id="accordion-container" class="accordion-list">
+            <!-- Items injected by JS -->
+        </div>
+
+        <!-- Footer -->
+        <div class="card-footer">
+            Built with pure HTML, CSS, & JS
+        </div>
+    </div>
+
+    <!-- Modal Component -->
+    <div id="feedback-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-icon">
+                <i data-lucide="check"></i>
+            </div>
+            <h3 class="modal-title">Thank You!</h3>
+            <p class="modal-text">Your feedback helps us improve.</p>
+            <button id="close-modal-btn" class="btn-close">Close</button>
+        </div>
+    </div>
+
+    <!-- Script at the bottom -->
+    <script src="script.js"></script>
+</body>
+
+</html>
