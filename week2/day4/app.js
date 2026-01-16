@@ -1,4 +1,59 @@
+const ErrorLogger = {
+    getKey: () => 'app_error_logs',
+    
+    // Call this inside catch blocks to save the error
+    log: function(error, context) {
+        // Read existing logs from LocalStorage (or start empty)
+        const logs = JSON.parse(localStorage.getItem(this.getKey()) || '[]');
+        
+        const newLog = {
+            timestamp: new Date().toISOString(),
+            context: context,
+            message: error.message || 'Unknown Error',
+            // Stack Trace: A report showing the active function calls at the time of the error
+            stack: error.stack || 'No stack trace available'
+        };
+        
+        logs.push(newLog);
+        localStorage.setItem(this.getKey(), JSON.stringify(logs));
+        console.warn(`[Logger] Error recorded in ${context}`);
+    },
 
+    // Generates the errors.md file for download
+    download: function() {
+        const logs = JSON.parse(localStorage.getItem(this.getKey()) || '[]');
+        
+        if (logs.length === 0) {
+            alert("No errors logged yet! Try causing a bug first.");
+            return;
+        }
+
+        let fileContent = "# Application Error Logs\nGenerated from Todo App\n\n";
+        
+        // Format the logs nicely for Markdown
+        logs.reverse().forEach(log => {
+            fileContent += `## Error in: ${log.context}\n`;
+            fileContent += `**Time:** ${log.timestamp}\n\n`;
+            fileContent += `**Message:** ${log.message}\n`;
+            fileContent += `**Stack Trace:**\n\`\`\`\n${log.stack}\n\`\`\`\n`;
+            fileContent += `\n---\n\n`;
+        });
+
+        // Create a downloadable file (Blob) in the browser
+        const blob = new Blob([fileContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'errors.md'; // The specific file name
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+};
+
+/** * --- TOAST NOTIFICATIONS --- 
+ */
 const toastContainer = document.getElementById('toast-container');
 
 function showToast(message, type = 'error') {
@@ -36,6 +91,8 @@ function loadTodos() {
         const stored = localStorage.getItem(STORAGE_KEY);
         todos = stored ? JSON.parse(stored) : [];
     } catch (error) {
+        // [LOGGING] Record the error here
+        ErrorLogger.log(error, 'loadTodos');
         console.error("Corrupt data found.", error);
         showToast("Data corrupted. Resetting list.", "error");
         todos = [];
@@ -45,8 +102,11 @@ function loadTodos() {
 // Save to LocalStorage
 function saveTodos() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+        // [SIMULATED BUG] 10% chance to fail, so we can test the logger
+       localStorage.setItem( JSON.stringify(todos));
     } catch (error) {
+        // [LOGGING] Record the error here
+        ErrorLogger.log(error, 'saveTodos');
         console.error("Save failed:", error);
         showToast("Failed to save: " + error.message, "error");
     }
@@ -57,6 +117,8 @@ const todoList = document.getElementById('todo-list');
 const todoInput = document.getElementById('todo-input');
 const addBtn = document.getElementById('add-btn');
 const clearBtn = document.getElementById('clear-btn');
+// We need to grab the new export button
+const exportBtn = document.getElementById('export-btn');
 const emptyState = document.getElementById('empty-state');
 const countText = document.getElementById('count-text');
 const statusText = document.getElementById('status-text');
@@ -138,16 +200,15 @@ function render() {
 
 // --- CRUD OPERATIONS ---
 function addTodo() {
-    // [DEBUGGING PRACTICE]
-    // The 'debugger' keyword forces a Breakpoint here if DevTools (F12) is open.
-    // This allows you to inspect variables like 'text' before the logic runs.
-    debugger; 
-
     try {
         const text = todoInput.value.trim();
+
+        // [DEBUGGING PRACTICE]
+        debugger; 
+
         if (!text) {
             showToast("Please enter a task name", "error");
-            return;
+            throw Error("Nothing inside the text box");
         }
 
         todos.push({
@@ -161,6 +222,8 @@ function addTodo() {
         saveTodos();
         render();
     } catch (e) {
+        // [LOGGING] Record the error here
+        ErrorLogger.log(e, 'addTodo');
         showToast("Unexpected error adding task", "error");
     }
 }
@@ -205,6 +268,10 @@ function clearAll() {
 addBtn.addEventListener('click', addTodo);
 todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTodo(); });
 clearBtn.addEventListener('click', clearAll);
+
+if (exportBtn) {
+    exportBtn.addEventListener('click', () => ErrorLogger.download());
+}
 
 // Start
 loadTodos();
