@@ -1,5 +1,4 @@
-/** * --- ERROR HANDLING: TOAST NOTIFICATIONS --- 
- */
+
 const toastContainer = document.getElementById('toast-container');
 
 function showToast(message, type = 'error') {
@@ -139,6 +138,11 @@ function render() {
 
 // --- CRUD OPERATIONS ---
 function addTodo() {
+    // [DEBUGGING PRACTICE]
+    // The 'debugger' keyword forces a Breakpoint here if DevTools (F12) is open.
+    // This allows you to inspect variables like 'text' before the logic runs.
+    debugger; 
+
     try {
         const text = todoInput.value.trim();
         if (!text) {
