@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Only Shop. Pure Shopping.</title>
+    
+    <!-- Lucide Icons (Specific UMD version for reliability) -->
+    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+    
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS File -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="glass-nav sticky-header">
+        <div class="container nav-container">
+            
+            <!-- Mobile Menu -->
+            <button class="icon-btn mobile-menu-btn"><i data-lucide="menu"></i></button>
+
+            <!-- Logo -->
+            <a href="#" class="logo" onclick="filterCategory('all')">
+                <span>OS</span>
+            </a>
+
+            <!-- Desktop Nav Links -->
+            <nav class="main-nav">
+                <a href="#" class="nav-link" onclick="filterCategory('all')">Shop All</a>
+                
+                <!-- NEW: Hover Dropdown -->
+                <div class="nav-item-dropdown">
+                    <button class="nav-link dropdown-trigger">
+                        Categories <i data-lucide="chevron-down" class="chevron-icon"></i>
+                    </button>
+                    <div id="categoryDropdown" class="dropdown-menu">
+                        <!-- Categories injected here by JS -->
+                    </div>
+                </div>
+
+                <a href="#" class="nav-link" onclick="filterCategory('laptops')">Laptops</a>
+                <a href="#" class="nav-link" onclick="filterCategory('beauty')">Beauty</a>
+                <a href="#" class="nav-link" onclick="filterCategory('home-decoration')">Home</a>
+                <a href="#" class="nav-link" onclick="filterCategory('groceries')">Grocery</a>
+            </nav>
+
+            <!-- Icons -->
+            <div class="nav-actions">
+                <button class="icon-btn" onclick="document.getElementById('searchInput').focus()"><i data-lucide="search"></i></button>
+                <button onclick="toggleCart()" class="icon-btn cart-btn-wrapper">
+                    <i data-lucide="shopping-bag"></i>
+                    <span id="cartCountBadge" class="cart-badge hidden">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <div class="hero-section">
+        <h1 class="hero-title">Only Shop. <span>Quality in every product.</span></h1>
+        
+        <!-- Filter Tabs -->
+        <div class="tabs-container">
+            <div class="tabs-scroll">
+                <button class="filter-tab active" onclick="filterCategory('all', this)">All</button>
+                <button class="filter-tab" onclick="filterCategory('laptops', this)">Computers</button>
+                <button class="filter-tab" onclick="filterCategory('beauty', this)">Beauty</button>
+                <button class="filter-tab" onclick="filterCategory('furniture', this)">Furniture</button>
+                <button class="filter-tab" onclick="filterCategory('groceries', this)">Grocery</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN PRODUCT AREA -->
+    <main class="main-content">
+        <div class="container">
+            
+            <div class="section-header">
+                <span class="section-title">New Arrivals</span>
+                
+                <div class="controls-wrapper">
+                    <div class="search-wrapper">
+                        <i data-lucide="search" class="search-icon-small"></i>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search products...">
+                    </div>
+
+                    <select id="sortSelect" class="sort-select">
+                        <option value="default">Relevance</option>
+                        <option value="rating">Top Rated</option>
+                        <option value="low">Price: Low to High</option>
+                        <option value="high">Price: High to Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div id="loader" class="loader-container">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Grid -->
+            <div id="productContainer" class="product-grid hidden">
+                <!-- Injected via JS -->
+            </div>
+             
+             <!-- Empty State -->
+             <div id="noResults" class="empty-state hidden">
+                <p>No products found matching your search.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- CART SIDEBAR -->
+    <div id="cartOverlay" class="cart-overlay hidden" onclick="toggleCart()"></div>
+    <div id="cartSidebar" class="cart-sidebar">
+        
+        <div class="cart-header">
+            <h2>Your Bag.</h2>
+            <button onclick="toggleCart()" class="close-btn"><i data-lucide="x"></i></button>
+        </div>
+        
+        <div id="cartItems" class="cart-items">
+            <!-- Items -->
+        </div>
+
+        <div class="cart-footer">
+            <div class="cart-row">
+                <span>Subtotal</span>
+                <span class="font-medium" id="cartTotal">$0.00</span>
+            </div>
+            <div class="cart-row">
+                <span>Shipping</span>
+                <span class="font-medium">Free</span>
+            </div>
+            <div class="cart-row total-row">
+                <span>Total</span>
+                <span id="cartFinalTotal">$0.00</span>
+            </div>
+            <button class="btn-checkout">
+                Check Out
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Logic Script -->
+    <script src="app.js"></script>
+</body>
+</html>

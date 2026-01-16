@@ -3,14 +3,12 @@ const ErrorLogger = {
     
     // Call this inside catch blocks to save the error
     log: function(error, context) {
-        // Read existing logs from LocalStorage (or start empty)
         const logs = JSON.parse(localStorage.getItem(this.getKey()) || '[]');
         
         const newLog = {
             timestamp: new Date().toISOString(),
             context: context,
             message: error.message || 'Unknown Error',
-            // Stack Trace: A report showing the active function calls at the time of the error
             stack: error.stack || 'No stack trace available'
         };
         
@@ -30,21 +28,19 @@ const ErrorLogger = {
 
         let fileContent = "# Application Error Logs\nGenerated from Todo App\n\n";
         
-        // Format the logs nicely for Markdown
         logs.reverse().forEach(log => {
-            fileContent += `## Error in: ${log.context}\n`;
+            fileContent += `## 🔴 Error in: ${log.context}\n`;
             fileContent += `**Time:** ${log.timestamp}\n\n`;
             fileContent += `**Message:** ${log.message}\n`;
             fileContent += `**Stack Trace:**\n\`\`\`\n${log.stack}\n\`\`\`\n`;
             fileContent += `\n---\n\n`;
         });
 
-        // Create a downloadable file (Blob) in the browser
         const blob = new Blob([fileContent], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'errors.md'; // The specific file name
+        a.download = 'errors.md';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -60,7 +56,6 @@ function showToast(message, type = 'error') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     
-    // Lucide icons for Toasts
     const iconHTML = type === 'error' 
         ? '<i data-lucide="alert-circle" style="color:var(--danger)"></i>' 
         : '<i data-lucide="check-circle" style="color:var(--success)"></i>';
@@ -72,7 +67,6 @@ function showToast(message, type = 'error') {
 
     toastContainer.appendChild(toast);
 
-    // Render the new icon
     if (window.lucide) lucide.createIcons();
 
     setTimeout(() => {
@@ -91,7 +85,6 @@ function loadTodos() {
         const stored = localStorage.getItem(STORAGE_KEY);
         todos = stored ? JSON.parse(stored) : [];
     } catch (error) {
-        // [LOGGING] Record the error here
         ErrorLogger.log(error, 'loadTodos');
         console.error("Corrupt data found.", error);
         showToast("Data corrupted. Resetting list.", "error");
@@ -102,10 +95,10 @@ function loadTodos() {
 // Save to LocalStorage
 function saveTodos() {
     try {
-        // [SIMULATED BUG] 10% chance to fail, so we can test the logger
-       localStorage.setItem( JSON.stringify(todos));
+        // --- FIX APPLIED HERE ---
+        // We restored the STORAGE_KEY argument.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
     } catch (error) {
-        // [LOGGING] Record the error here
         ErrorLogger.log(error, 'saveTodos');
         console.error("Save failed:", error);
         showToast("Failed to save: " + error.message, "error");
@@ -117,7 +110,6 @@ const todoList = document.getElementById('todo-list');
 const todoInput = document.getElementById('todo-input');
 const addBtn = document.getElementById('add-btn');
 const clearBtn = document.getElementById('clear-btn');
-// We need to grab the new export button
 const exportBtn = document.getElementById('export-btn');
 const emptyState = document.getElementById('empty-state');
 const countText = document.getElementById('count-text');
@@ -145,14 +137,11 @@ function render() {
         const li = document.createElement('li');
         li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
 
-        // Checkbox with Icon
         const check = document.createElement('div');
         check.className = 'check-circle';
-        // We put the icon structure here; CSS handles visibility
         check.innerHTML = '<i data-lucide="check"></i>';
         check.onclick = () => toggleTodo(realIndex);
 
-        // Content
         const content = document.createElement('div');
         content.className = 'todo-text';
         
@@ -173,7 +162,6 @@ function render() {
             content.onclick = () => enableEditMode(realIndex);
         }
 
-        // Actions with Icons
         const actions = document.createElement('div');
         actions.className = 'actions';
 
@@ -192,7 +180,6 @@ function render() {
         todoList.appendChild(li);
     });
 
-    // IMPORTANT: Re-scan the DOM to replace <i> tags with SVGs
     if (window.lucide) {
         lucide.createIcons();
     }
@@ -208,6 +195,7 @@ function addTodo() {
 
         if (!text) {
             showToast("Please enter a task name", "error");
+            // This throw is fine, it just triggers the catch block below
             throw Error("Nothing inside the text box");
         }
 
@@ -222,9 +210,11 @@ function addTodo() {
         saveTodos();
         render();
     } catch (e) {
-        // [LOGGING] Record the error here
         ErrorLogger.log(e, 'addTodo');
-        showToast("Unexpected error adding task", "error");
+        // Only show toast if it wasn't the "Please enter..." error we already showed
+        if (e.message !== "Nothing inside the text box") {
+             showToast("Unexpected error adding task", "error");
+        }
     }
 }
 
@@ -275,5 +265,4 @@ if (exportBtn) {
 
 // Start
 loadTodos();
-// Initial render (and icon creation)
 render();
