@@ -64,21 +64,6 @@ h1 {
     align-items: center;
 }
 
-.search-wrapper {
-    background: #f3f4f6;
-    border-radius: 8px;
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-}
-
-.search-wrapper:focus-within {
-    border-color: var(--primary);
-    background: #fff;
-}
-
 input[type="text"] {
     flex-grow: 1;
     padding: 0.75rem 1rem;
@@ -94,13 +79,6 @@ input[type="text"]:focus {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
-.search-input {
-    border: none !important;
-    background: transparent;
-    padding: 0.25rem 0.5rem !important;
-    box-shadow: none !important;
-}
-
 button {
     cursor: pointer;
     border: none;
@@ -109,6 +87,9 @@ button {
     font-weight: 600;
     transition: transform 0.1s, opacity 0.2s;
     height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 button:active {
@@ -165,6 +146,7 @@ ul {
     color: #86efac;
 }
 
+/* Updated Check Circle for Icons */
 .check-circle {
     width: 24px;
     height: 24px;
@@ -176,13 +158,26 @@ ul {
     justify-content: center;
     flex-shrink: 0;
     transition: all 0.2s;
-    color: transparent;
+    background: #fff;
+}
+
+/* Icon inside check circle */
+.check-circle svg {
+    width: 14px;
+    height: 14px;
+    stroke: white;
+    stroke-width: 3;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s;
 }
 
 .completed .check-circle {
     background-color: var(--success);
     border-color: var(--success);
-    color: white;
+}
+
+.completed .check-circle svg {
+    opacity: 1; /* Show icon when completed */
 }
 
 .todo-text {
@@ -215,11 +210,18 @@ ul {
 
 .icon-btn {
     background: none;
-    padding: 4px;
+    padding: 6px; /* Slightly larger padding for icons */
     color: var(--text-muted);
-    font-size: 1.2rem;
     border-radius: 4px;
     height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .icon-btn:hover {
@@ -293,7 +295,12 @@ ul {
 }
 
 .toast.success { border-left-color: var(--success); }
-.toast-icon { font-size: 1.2rem; }
+
+/* Ensure toast icons align well */
+.toast-icon { 
+    display: flex; 
+    align-items: center; 
+}
 
 @keyframes slideInRight {
     from { transform: translateX(100%); opacity: 0; }

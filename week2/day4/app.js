@@ -1,16 +1,3 @@
-/** * --- UTILITY: DEBOUNCE ---
- * Delays execution until the user stops typing.
- */
-function debounce(func, delay) {
-    let timeoutId;
-    return function(...args) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            func.apply(this, args);
-        }, delay);
-    };
-}
-
 /** * --- ERROR HANDLING: TOAST NOTIFICATIONS --- 
  */
 const toastContainer = document.getElementById('toast-container');
@@ -18,14 +5,21 @@ const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'error') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icon = type === 'error' ? '⚠️' : '✅';
+    
+    // Lucide icons for Toasts
+    const iconHTML = type === 'error' 
+        ? '<i data-lucide="alert-circle" style="color:var(--danger)"></i>' 
+        : '<i data-lucide="check-circle" style="color:var(--success)"></i>';
     
     toast.innerHTML = `
-        <span class="toast-icon">${icon}</span>
+        <span class="toast-icon">${iconHTML}</span>
         <span>${message}</span>
     `;
 
     toastContainer.appendChild(toast);
+
+    // Render the new icon
+    if (window.lucide) lucide.createIcons();
 
     setTimeout(() => {
         toast.style.animation = 'fadeOut 0.5s ease-out forwards';
@@ -36,7 +30,6 @@ function showToast(message, type = 'error') {
 // --- STATE MANAGEMENT ---
 const STORAGE_KEY = 'day4_todos_v2';
 let todos = [];
-let filterText = '';
 
 // Load from LocalStorage
 function loadTodos() {
@@ -53,10 +46,6 @@ function loadTodos() {
 // Save to LocalStorage
 function saveTodos() {
     try {
-        // SIMULATED ERROR: Fails 10% of the time
-        if (Math.random() < 0.1) {
-            throw new Error("Simulated Storage Failure!");
-        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
     } catch (error) {
         console.error("Save failed:", error);
@@ -67,10 +56,8 @@ function saveTodos() {
 // --- DOM ELEMENTS ---
 const todoList = document.getElementById('todo-list');
 const todoInput = document.getElementById('todo-input');
-const searchInput = document.getElementById('search-input');
 const addBtn = document.getElementById('add-btn');
 const clearBtn = document.getElementById('clear-btn');
-const errorBtn = document.getElementById('error-btn');
 const emptyState = document.getElementById('empty-state');
 const countText = document.getElementById('count-text');
 const statusText = document.getElementById('status-text');
@@ -79,32 +66,29 @@ const statusText = document.getElementById('status-text');
 function render() {
     todoList.innerHTML = '';
     
-    const filteredTodos = todos.filter(todo => 
-        todo.text.toLowerCase().includes(filterText.toLowerCase())
-    );
-
     const activeCount = todos.filter(t => !t.completed).length;
     countText.textContent = `${activeCount} item${activeCount !== 1 ? 's' : ''} left`;
     
     const date = new Date();
     statusText.textContent = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-    if (filteredTodos.length === 0) {
+    if (todos.length === 0) {
         emptyState.classList.add('visible');
     } else {
         emptyState.classList.remove('visible');
     }
 
-    filteredTodos.forEach((todo) => {
+    todos.forEach((todo) => {
         const realIndex = todos.indexOf(todo);
 
         const li = document.createElement('li');
         li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
 
-        // Checkbox
+        // Checkbox with Icon
         const check = document.createElement('div');
         check.className = 'check-circle';
-        check.textContent = '✔';
+        // We put the icon structure here; CSS handles visibility
+        check.innerHTML = '<i data-lucide="check"></i>';
         check.onclick = () => toggleTodo(realIndex);
 
         // Content
@@ -128,24 +112,29 @@ function render() {
             content.onclick = () => enableEditMode(realIndex);
         }
 
-        // Actions
+        // Actions with Icons
         const actions = document.createElement('div');
         actions.className = 'actions';
 
         const editBtn = document.createElement('button');
         editBtn.className = 'icon-btn';
-        editBtn.innerHTML = '✏️';
+        editBtn.innerHTML = '<i data-lucide="pencil"></i>';
         editBtn.onclick = (e) => { e.stopPropagation(); enableEditMode(realIndex); };
 
         const delBtn = document.createElement('button');
         delBtn.className = 'icon-btn delete';
-        delBtn.innerHTML = '🗑️';
+        delBtn.innerHTML = '<i data-lucide="trash-2"></i>';
         delBtn.onclick = (e) => { e.stopPropagation(); deleteTodo(realIndex); };
 
         actions.append(editBtn, delBtn);
         li.append(check, content, actions);
         todoList.appendChild(li);
     });
+
+    // IMPORTANT: Re-scan the DOM to replace <i> tags with SVGs
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 // --- CRUD OPERATIONS ---
@@ -208,30 +197,12 @@ function clearAll() {
     }
 }
 
-function simulateRandomError() {
-    try {
-        const errors = [
-            "Network Timeout: Could not sync.",
-            "QuotaExceededError: Storage full.",
-            "SyntaxError: Unexpected token in JSON."
-        ];
-        throw new Error(errors[Math.floor(Math.random() * errors.length)]);
-    } catch (error) {
-        showToast(error.message, "error");
-        console.warn("Caught simulated error:", error);
-    }
-}
-
 // --- EVENT LISTENERS ---
 addBtn.addEventListener('click', addTodo);
 todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTodo(); });
 clearBtn.addEventListener('click', clearAll);
-errorBtn.addEventListener('click', simulateRandomError);
-searchInput.addEventListener('input', debounce((e) => {
-    filterText = e.target.value;
-    render();
-}, 300));
 
 // Start
 loadTodos();
+// Initial render (and icon creation)
 render();

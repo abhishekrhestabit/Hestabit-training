@@ -6,7 +6,10 @@
     <title>Day 4: Persistent Todo App</title>
     <!-- Link to the CSS file -->
     <link rel="stylesheet" href="style.css">
+        
 </head>
+<script src="https://unpkg.com/lucide@latest"></script>
+
 <body>
 
     <div class="app-container">
@@ -15,17 +18,14 @@
             <div class="stats" id="status-text">Loading...</div>
         </header>
 
-        <!-- Search Bar -->
-        <div class="search-wrapper">
-            <span style="color:#9ca3af; font-size: 1.2rem;">🔍</span>
-            <input type="text" id="search-input" class="search-input" placeholder="Search tasks...">
-        </div>
-        <hr style="border: 0; border-top: 1px solid #e5e7eb;">
-
         <!-- Add Todo -->
         <div class="input-group">
             <input type="text" id="todo-input" placeholder="What needs to be done?">
-            <button id="add-btn" class="btn-primary">Add</button>
+            <button id="add-btn" class="btn-primary">
+                <!-- Added icon for the button -->
+                <i data-lucide="plus" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"></i> 
+                Add
+            </button>
         </div>
 
         <!-- List -->
@@ -35,14 +35,13 @@
         
         <!-- Empty State -->
         <div id="empty-state" class="empty-state">
-            <p>🎉 All caught up!</p>
+            <p>All caught up!</p>
             <p><small>Add a task to get started.</small></p>
         </div>
 
         <div class="footer">
             <span class="stats" id="count-text">0 items left</span>
             <div style="display:flex; gap:15px;">
-                <button class="btn-text" id="error-btn" style="color: var(--danger)">🐞 Bug!</button>
                 <button class="btn-text" id="clear-btn">Clear All</button>
             </div>
         </div>
@@ -51,7 +50,10 @@
     <!-- Container for Toasts -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Link to the JS file -->
+        
+    <!-- 2. Link to the JS file -->
     <script src="app.js"></script>
 </body>
 </html>
+
+
