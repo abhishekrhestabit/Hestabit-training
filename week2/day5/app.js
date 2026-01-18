@@ -1,327 +1,360 @@
-// --- STATE MANAGEMENT ---
-let allProducts = [];
-let cart = JSON.parse(localStorage.getItem('os_cart')) || []; 
-let currentCategory = 'all';
+ // --- APP STATE ---
+        let inventory = [];
+        let cart = JSON.parse(localStorage.getItem('os_cart')) || [];
+        let activeCat = 'all';
+        let slideIdx = 0;
+        let isDarkMode = localStorage.getItem('os_theme') !== 'light'; // Default to dark
 
-// Map categories to display titles
-const categoryTitles = {
-    'all': 'New Arrivals',
-    'laptops': 'Pro Laptops',
-    'beauty': 'Beauty & Skincare',
-    'furniture': 'Modern Furniture',
-    'groceries': 'Daily Essentials',
-    'home-decoration': 'Home Decor'
-};
-
-// Define the sections order for the "Shop All" page
-const shopSections = [
-    { id: 'laptops', title: 'Pro Laptops' },
-    { id: 'beauty', title: 'Beauty & Fragrances', group: ['beauty', 'fragrances', 'skin-care', 'skincare'] },
-    { id: 'home-decoration', title: 'Home & Decor' },
-    { id: 'groceries', title: 'Daily Essentials' }
-];
-
-// --- DOM ELEMENTS ---
-const container = document.getElementById('productContainer');
-const loader = document.getElementById('loader');
-const sortSelect = document.getElementById('sortSelect');
-const searchInput = document.getElementById('searchInput');
-const noResults = document.getElementById('noResults');
-const cartSidebar = document.getElementById('cartSidebar');
-const cartOverlay = document.getElementById('cartOverlay');
-const filterTabs = document.querySelectorAll('.filter-tab');
-const navLinks = document.querySelectorAll('.nav-link');
-const sectionTitle = document.querySelector('.section-title');
-const categoryDropdown = document.getElementById('categoryDropdown');
-
-// --- INITIALIZATION ---
-async function init() {
-    console.log("App Initializing...");
-    
-    if (!container || !loader) {
-        console.error("Critical: DOM elements not found.");
-        return;
-    }
-
-    updateCartUI();
-    
-    try {
-        if (window.lucide) lucide.createIcons();
-    } catch (iconErr) {
-        console.warn("Icons not ready yet");
-    }
-    
-    try {
-        console.log("Fetching products...");
-        const res = await fetch('https://dummyjson.com/products?limit=100');
-        
-        if (!res.ok) throw new Error(`HTTP Error! Status: ${res.status}`);
-
-        const data = await res.json();
-        allProducts = data.products;
-        
-        setTimeout(() => {
-            loader.classList.add('hidden');
-            container.classList.remove('hidden');
-            
-            // Populate Dynamic Dropdown
-            populateDropdown(allProducts);
-
-            // Initial Render
-            applyFilters();
-            
-            if (window.lucide) lucide.createIcons();
-        }, 600);
-
-    } catch (err) {
-        console.error("Fetch failed:", err);
-        loader.classList.add('hidden');
-        container.classList.remove('hidden');
-        container.innerHTML = `
-            <div style="text-align:center; color: #ef4444; grid-column: 1/-1; padding: 2rem;">
-                <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Service Unavailable</h3>
-                <p>Could not load products. Please check your internet connection.</p>
-            </div>`;
-    }
-}
-
-// --- DYNAMIC DROPDOWN GENERATOR ---
-function populateDropdown(products) {
-    if (!categoryDropdown) return;
-
-    // 1. Extract unique categories
-    const categories = [...new Set(products.map(p => p.category))].sort();
-    
-    categoryDropdown.innerHTML = ''; // Clear existing
-
-    // 2. Add 'All' link first
-    const allLink = document.createElement('a');
-    allLink.className = 'dropdown-item';
-    allLink.textContent = 'All Products';
-    allLink.onclick = (e) => {
-        e.preventDefault();
-        filterCategory('all');
-    };
-    categoryDropdown.appendChild(allLink);
-
-    // 3. Create links for each category
-    categories.forEach(cat => {
-        const item = document.createElement('a');
-        item.className = 'dropdown-item';
-        // Format: 'skin-care' -> 'Skin Care'
-        item.textContent = cat.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        item.onclick = (e) => {
-            e.preventDefault(); // Prevent jump
-            filterCategory(cat);
+        // --- SCROLL ANIMATION OBSERVER ---
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: "0px 0px -50px 0px"
         };
-        categoryDropdown.appendChild(item);
-    });
-}
-
-// --- RENDER HELPERS ---
-
-function createCardHTML(product) {
-    const isNew = product.id % 7 === 0 ? `<span class="new-badge">New Arrival</span>` : '';
-    const ratingHTML = `<div class="card-rating">${product.rating.toFixed(1)} ★</div>`;
-    
-    return `
-        <div class="os-card fade-in">
-            <div class="card-header">
-                ${isNew}
-                <h3 class="card-title">${product.title}</h3>
-                <p class="card-category">${product.category}</p>
-            </div>
-            <div class="card-image-wrapper">
-                 <img src="${product.thumbnail}" class="card-image" alt="${product.title}" loading="lazy">
-            </div>
-            <div class="card-footer">
-                <div class="price-group">
-                    <span class="card-price">$${product.price}</span>
-                    ${ratingHTML}
-                </div>
-                <button onclick="addToCart(${product.id})" class="btn-pill">Add</button>
-            </div>
-        </div>
-    `;
-}
-
-function renderFlat(products) {
-    container.innerHTML = '';
-    container.className = 'product-grid'; 
-    
-    if (!products || products.length === 0) {
-        container.classList.add('hidden');
-        noResults.classList.remove('hidden');
-        return;
-    }
-    container.classList.remove('hidden');
-    noResults.classList.add('hidden');
-
-    products.forEach(product => {
-        const div = document.createElement('div');
-        div.innerHTML = createCardHTML(product);
-        container.appendChild(div.firstElementChild);
-    });
-}
-
-function renderSections() {
-    container.innerHTML = '';
-    container.className = 'product-sections-container';
-    
-    container.classList.remove('hidden');
-    noResults.classList.add('hidden');
-
-    shopSections.forEach(section => {
-        const sectionProducts = allProducts.filter(p => {
-            if (section.group) return section.group.includes(p.category);
-            return p.category === section.id;
-        });
-
-        if (sectionProducts.length > 0) {
-            const sectionWrapper = document.createElement('div');
-            sectionWrapper.className = 'category-section';
-            
-            const titleHTML = `<h2 class="category-section-title">${section.title}</h2>`;
-            
-            let gridHTML = '<div class="product-grid">';
-            sectionProducts.forEach(p => {
-                 gridHTML += createCardHTML(p);
+        const scrollObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    scrollObserver.unobserve(entry.target); // Animate only once
+                }
             });
-            gridHTML += '</div>';
+        }, observerOptions);
 
-            sectionWrapper.innerHTML = titleHTML + gridHTML;
-            container.appendChild(sectionWrapper);
+        // --- ELEMENTS ---
+        const views = { home: document.getElementById('view-home'), shop: document.getElementById('view-shop') };
+        const els = {
+            shopGrid: document.getElementById('shopGrid'),
+            ratedGrid: document.getElementById('topRatedGrid'),
+            cartList: document.getElementById('cartList'),
+            search: document.getElementById('searchProduct'),
+            sort: document.getElementById('sortSort'),
+            dropdown: document.getElementById('catDropdown'),
+            shopTitle: document.getElementById('shopPageTitle'),
+            cartBadge: document.getElementById('cartBadge'),
+            cartHeaderCount: document.getElementById('cartCountHeader'),
+            cartTotal: document.getElementById('cartTotalDisplay'),
+            emptyMsg: document.getElementById('emptyMsg'),
+            themeBtn: document.getElementById('themeBtn')
+        };
+
+        // --- INIT ---
+        async function init() {
+            // Apply Theme
+            applyTheme();
+            
+            updateCartUI();
+            startSlider();
+            if(window.lucide) lucide.createIcons();
+
+            try {
+                // Fetch ample data to ensure we find matching categories
+                const res = await fetch('https://dummyjson.com/products?limit=190');
+                const data = await res.json();
+                inventory = data.products;
+
+                // 1. Dynamic Bento Images (Highest rated item in category)
+                setBestImage('laptops', 'bento-laptop-img');
+                setBestImage('home-decoration', 'bento-decor-img');
+
+                renderDropdown(inventory);
+                renderHomeRated(inventory);
+                renderShop(inventory); // Pre-load shop
+
+                // Observe initial static elements
+                document.querySelectorAll('.reveal').forEach(el => scrollObserver.observe(el));
+
+            } catch(e) {
+                console.error(e);
+                els.shopGrid.innerHTML = '<p style="color:red; text-align:center">Error loading products. Please check connection.</p>';
+            }
         }
-    });
-}
 
-// --- CORE FILTER LOGIC ---
-function applyFilters() {
-    let filtered = [...allProducts];
-    const sortValue = sortSelect.value;
-    const searchTerm = searchInput.value.toLowerCase().trim();
+        // --- THEME LOGIC ---
+        window.toggleTheme = () => {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('os_theme', isDarkMode ? 'dark' : 'light');
+            applyTheme();
+        };
 
-    // 1. FILTER CATEGORY
-    if (currentCategory !== 'all') {
-        if(currentCategory === 'beauty') {
-             filtered = filtered.filter(p => ['beauty','fragrances','skin-care','skincare'].includes(p.category));
-        } else if(currentCategory === 'groceries') {
-            filtered = filtered.filter(p => p.category === 'groceries');
-        } else {
-            filtered = filtered.filter(p => p.category === currentCategory);
+        function applyTheme() {
+            if (isDarkMode) {
+                document.documentElement.removeAttribute('data-theme');
+                els.themeBtn.innerHTML = '<i data-lucide="moon" style="width:20px;"></i>';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                els.themeBtn.innerHTML = '<i data-lucide="sun" style="width:20px;"></i>';
+            }
+            if(window.lucide) lucide.createIcons();
         }
-    } else {
-        filtered = filtered.filter(p => p.category !== 'smartphones');
-    }
 
-    // 2. SEARCH FILTER
-    if (searchTerm) {
-        filtered = filtered.filter(p => p.title.toLowerCase().includes(searchTerm));
-    }
+        // Helper to find highest rated image for Bento Grid
+        function setBestImage(catName, imgId) {
+            const items = inventory.filter(p => p.category === catName);
+            if (items.length > 0) {
+                items.sort((a, b) => b.rating - a.rating); // Sort high to low
+                const imgEl = document.getElementById(imgId);
+                if(imgEl) {
+                    imgEl.src = items[0].thumbnail;
+                }
+            } else {
+                console.warn(`No items found for category: ${catName}`);
+                // Fallback images if API category names changed
+                if(catName === 'laptops') document.getElementById(imgId).src = 'https://cdn.dummyjson.com/products/images/laptops/MacBook%20Pro/thumbnail.png';
+            }
+        }
 
-    // 3. SORT
-    if (sortValue === 'low') filtered.sort((a,b) => a.price - b.price);
-    if (sortValue === 'high') filtered.sort((a,b) => b.price - a.price);
-    if (sortValue === 'rating') filtered.sort((a,b) => b.rating - a.rating);
+        // --- NAVIGATION ---
+        window.navigateTo = (view, cat) => {
+            // Toggle Views
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            views[view].classList.remove('hidden');
+            
+            // Scroll top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // 4. RENDER DECISION
-    if (currentCategory === 'all' && sortValue === 'default' && !searchTerm) {
-        renderSections();
-    } else {
-        renderFlat(filtered);
-    }
-    
-    if (window.lucide) lucide.createIcons();
-}
+            // Nav link active states
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            if(view === 'home') document.querySelector('.nav-link[onclick*="home"]').classList.add('active');
+            if(view === 'shop') document.querySelector('.nav-link[onclick*="shop"]').classList.add('active');
 
-// --- CART LOGIC ---
-function addToCart(id) {
-    const product = allProducts.find(p => p.id === id);
-    const existingItem = cart.find(item => item.id === id);
-    if (existingItem) existingItem.qty++;
-    else cart.push({ ...product, qty: 1 });
-    saveCart();
-    updateCartUI();
-    if (!cartSidebar.classList.contains('open')) toggleCart();
-}
+            if(view === 'shop') {
+                if(cat) filterCategory(cat);
+                else if(activeCat === 'all') renderShop(inventory);
+            }
+            if(window.lucide) lucide.createIcons();
+            
+            // Re-trigger animations for new view content
+            setTimeout(() => {
+                document.querySelectorAll('.reveal:not(.active)').forEach(el => scrollObserver.observe(el));
+            }, 100);
+        }
 
-function removeFromCart(id) {
-    cart = cart.filter(item => item.id !== id);
-    saveCart();
-    updateCartUI();
-}
+        window.toggleCart = () => {
+            document.getElementById('cartSidebar').classList.toggle('open');
+            document.getElementById('cartOverlay').classList.toggle('open');
+        };
 
-function updateQty(id, change) {
-    const item = cart.find(p => p.id === id);
-    if (item) {
-        item.qty += change;
-        if (item.qty <= 0) removeFromCart(id);
-        else saveCart();
-        updateCartUI();
-    }
-}
+        // --- SLIDER ---
+        function startSlider() {
+            const imgs = document.querySelectorAll('.hero-img');
+            setInterval(() => {
+                imgs[slideIdx].classList.remove('active');
+                slideIdx = (slideIdx + 1) % imgs.length;
+                imgs[slideIdx].classList.add('active');
+            }, 5000);
+        }
 
-function saveCart() { localStorage.setItem('os_cart', JSON.stringify(cart)); }
+        // --- RENDERING ---
+        function renderDropdown(products) {
+            // Get ALL unique categories and sort them
+            const cats = [...new Set(products.map(p => p.category))].sort();
 
-function updateCartUI() {
-    const totalItems = cart.reduce((acc, item) => acc + item.qty, 0);
-    const badge = document.getElementById('cartCountBadge');
-    if(badge) {
-        badge.innerText = totalItems;
-        badge.classList.toggle('hidden', totalItems === 0);
-    }
-    const cartList = document.getElementById('cartItems');
-    const cartTotal = document.getElementById('cartTotal');
-    const cartFinalTotal = document.getElementById('cartFinalTotal');
-    if(cartList) cartList.innerHTML = '';
-    let totalPrice = 0;
+            els.dropdown.innerHTML = `<span class="dropdown-item" onclick="navigateTo('shop', 'all')">All Products</span>`;
+            
+            // Render every category found in the data
+            cats.forEach(c => {
+                const link = document.createElement('span');
+                link.className = 'dropdown-item';
+                link.textContent = formatTxt(c);
+                link.onclick = (e) => { e.preventDefault(); navigateTo('shop', c); };
+                els.dropdown.appendChild(link);
+            });
+        }
 
-    if (cart.length === 0) {
-        if(cartList) cartList.innerHTML = `<div class="empty-cart-msg"><p>Your bag is empty.</p></div>`;
-    } else {
-        cart.forEach(item => {
-            totalPrice += item.price * item.qty;
-            if(cartList) cartList.innerHTML += `
-                <div class="cart-item">
-                    <img src="${item.thumbnail}" class="cart-item-img" style="width:50px;">
-                    <div class="cart-item-info">
-                        <h4>${item.title}</h4>
-                        <span>$${item.price} x ${item.qty}</span>
+        function renderHomeRated(products) {
+            // Get strictly high rated items for "AI Picks"
+            const top = products.filter(p => p.rating >= 4.7).slice(0, 4);
+            els.ratedGrid.innerHTML = '';
+            top.forEach(p => {
+                const card = createProductCard(p);
+                card.classList.add('reveal'); // Add animation class
+                els.ratedGrid.appendChild(card);
+                scrollObserver.observe(card); // Observe
+            });
+            if(window.lucide) lucide.createIcons();
+        }
+
+        function renderShop(products) {
+            els.shopGrid.innerHTML = '';
+            if(products.length === 0) {
+                els.emptyMsg.classList.remove('hidden');
+            } else {
+                els.emptyMsg.classList.add('hidden');
+                products.forEach(p => {
+                    const card = createProductCard(p);
+                    card.classList.add('reveal'); // Add animation class
+                    els.shopGrid.appendChild(card);
+                    scrollObserver.observe(card); // Observe
+                });
+            }
+            if(window.lucide) lucide.createIcons();
+        }
+
+        function createProductCard(p) {
+            const div = document.createElement('div');
+            div.className = 'product-card';
+            
+            // Generate Stars
+            const starsHTML = getStarRatingHTML(p.rating);
+
+            div.innerHTML = `
+                <div class="p-img-container">
+                    <img src="${p.thumbnail}" class="p-img" loading="lazy" alt="${p.title}">
+                </div>
+                <div class="p-info">
+                    <div class="p-cat">${formatTxt(p.category)}</div>
+                    <h3>${p.title}</h3>
+                    <div class="p-rating">
+                        ${starsHTML} <span style="color:var(--text-muted); margin-left:4px;">(${p.rating})</span>
                     </div>
-                    <button onclick="removeFromCart(${item.id})">x</button>
-                </div>`;
-        });
-    }
-    if(cartTotal) cartTotal.innerText = '$' + totalPrice.toFixed(2);
-    if(cartFinalTotal) cartFinalTotal.innerText = '$' + totalPrice.toFixed(2);
-}
+                    <div class="p-footer">
+                        <span class="p-price">$${p.price}</span>
+                        <button class="btn-add" onclick="addToCart(${p.id})"><i data-lucide="plus" style="width:20px;"></i></button>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
 
-function toggleCart() {
-    if(cartSidebar) {
-        cartSidebar.classList.toggle('open');
-        const isOpen = cartSidebar.classList.contains('open');
-        cartOverlay.classList.toggle('hidden', !isOpen);
-        document.body.style.overflow = isOpen ? 'hidden' : '';
-    }
-}
+        function getStarRatingHTML(rating) {
+            const fullStar = `<svg class="star-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+            const emptyStar = `<svg class="star-icon star-muted" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+            
+            let html = '';
+            const rounded = Math.round(rating);
+            for(let i=1; i<=5; i++) {
+                html += i <= rounded ? fullStar : emptyStar;
+            }
+            return html;
+        }
 
-// Event Listeners
-sortSelect.addEventListener('change', applyFilters);
-searchInput.addEventListener('input', applyFilters);
+        // --- FILTER & LOGIC ---
+        window.filterCategory = (cat, btn) => {
+            activeCat = cat;
+            if(btn) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            } else {
+                // If called from nav, update tabs manually
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                const matchingBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => 
+                    b.innerText.toLowerCase().includes(cat === 'home-decoration' ? 'furniture' : cat) || 
+                    (cat === 'all' && b.innerText === 'All')
+                );
+                if(matchingBtn) matchingBtn.classList.add('active');
+            }
+            
+            els.shopTitle.textContent = cat === 'all' ? 'All Products' : formatTxt(cat);
+            applyFilters();
+        };
 
-window.filterCategory = (cat, element) => {
-    currentCategory = cat;
-    if(element) {
-        filterTabs.forEach(t => t.classList.remove('active'));
-        element.classList.add('active');
-    }
-    
-    // Dynamic Title Logic
-    if(sectionTitle) {
-        // Try the map first, otherwise format the slug
-        sectionTitle.textContent = categoryTitles[cat] || cat.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    }
-    applyFilters();
-};
+        function applyFilters() {
+            let list = [...inventory];
+            
+            // Category Logic
+            if(activeCat !== 'all') {
+                if(activeCat === 'beauty') {
+                    list = list.filter(p => ['beauty', 'skin-care', 'fragrances'].includes(p.category));
+                } 
+                else if (activeCat === 'furniture') {
+                    list = list.filter(p => ['furniture', 'home-decoration'].includes(p.category));
+                }
+                else {
+                    list = list.filter(p => p.category === activeCat);
+                }
+            }
 
-init();
+            // Search
+            const term = els.search.value.toLowerCase();
+            if(term) list = list.filter(p => p.title.toLowerCase().includes(term));
+
+            // Sort
+            const sortVal = els.sort.value;
+            if(sortVal === 'price_low') list.sort((a,b) => a.price - b.price);
+            else if(sortVal === 'price_high') list.sort((a,b) => b.price - a.price);
+            else if(sortVal === 'rating') list.sort((a,b) => b.rating - a.rating);
+
+            renderShop(list);
+        }
+
+        els.search.addEventListener('input', applyFilters);
+        els.sort.addEventListener('change', applyFilters);
+
+        // --- CART ---
+        window.addToCart = (id) => {
+            const item = inventory.find(p => p.id === id);
+            const existing = cart.find(c => c.id === id);
+            if(existing) existing.qty++; else cart.push({...item, qty:1});
+            updateCartUI();
+            
+            // Visual feedback
+            const btn = document.querySelector(`button[onclick="addToCart(${id})"]`);
+            if(btn) {
+                const originalHTML = btn.innerHTML;
+                btn.style.background = "#3b82f6";
+                btn.innerHTML = `<i data-lucide="check" style="width:20px;"></i>`;
+                if(window.lucide) lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = "";
+                    if(window.lucide) lucide.createIcons();
+                }, 1000);
+            }
+        };
+
+        window.remItem = (id) => {
+            cart = cart.filter(c => c.id !== id);
+            updateCartUI();
+        };
+
+        window.checkout = () => {
+            if(cart.length === 0) return;
+            alert("Thank you for your purchase! This is a demo store. AI Personalization engine has recorded your preference.");
+            cart = [];
+            updateCartUI();
+            toggleCart();
+        };
+
+        function updateCartUI() {
+            localStorage.setItem('os_cart', JSON.stringify(cart));
+            const count = cart.reduce((a,b) => a+b.qty, 0);
+            
+            els.cartBadge.innerText = count;
+            els.cartHeaderCount.innerText = count;
+            els.cartBadge.classList.toggle('hidden', count === 0);
+
+            els.cartList.innerHTML = '';
+            let total = 0;
+
+            if(cart.length === 0) {
+                els.cartList.innerHTML = `
+                    <div style="text-align:center; color:var(--text-muted); padding-top:2rem;">
+                        <i data-lucide="shopping-cart" style="width:40px; height:40px; opacity:0.5; margin-bottom:1rem;"></i>
+                        <p>Your cart is empty.</p>
+                        <button onclick="toggleCart(); navigateTo('shop','all')" style="margin-top:1rem; background:transparent; border:1px solid #333; color:var(--text-main); padding:0.5rem 1rem; border-radius:6px; cursor:pointer;">Start Shopping</button>
+                    </div>`;
+                if(window.lucide) lucide.createIcons();
+            }
+
+            cart.forEach(item => {
+                total += item.price * item.qty;
+                els.cartList.innerHTML += `
+                    <div class="cart-item">
+                        <div class="cart-img-box"><img src="${item.thumbnail}" class="cart-img"></div>
+                        <div style="flex-grow:1;">
+                            <div style="font-weight:600; font-size:1rem; margin-bottom:0.25rem;">${item.title}</div>
+                            <div style="font-size:0.9rem; color:var(--text-muted);">$${item.price} x ${item.qty}</div>
+                        </div>
+                        <button onclick="remItem(${item.id})" style="background:none; border:none; color:#ff4444; cursor:pointer;"><i data-lucide="trash-2" style="width:18px"></i></button>
+                    </div>
+                `;
+            });
+            els.cartTotal.innerText = '$' + total.toFixed(2);
+            if(window.lucide) lucide.createIcons();
+        }
+
+        // Helper
+        function formatTxt(str) {
+            return str.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        }
+
+        init();

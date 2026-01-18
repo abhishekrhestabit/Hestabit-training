@@ -1,154 +1,218 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Only Shop. Pure Shopping.</title>
+    <title>Only Shop | Premium Store</title>
     
-    <!-- Lucide Icons (Specific UMD version for reliability) -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
     
     <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Custom CSS File -->
     <link rel="stylesheet" href="style.css">
+
 </head>
 <script src="https://unpkg.com/lucide@latest"></script>
 
 <body>
 
-    <!-- HEADER -->
-    <header class="glass-nav sticky-header">
-        <div class="container nav-container">
-            
-            <!-- Mobile Menu -->
-            <button class="icon-btn mobile-menu-btn"><i data-lucide="menu"></i></button>
-
-            <!-- Logo -->
-            <a href="#" class="logo" onclick="filterCategory('all')">
-                <span>OS</span>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container nav-inner">
+            <a href="#" class="logo" onclick="navigateTo('home')">
+                <span class="logo-box">OS</span> OnlyShop
             </a>
 
-            <!-- Desktop Nav Links -->
-            <nav class="main-nav">
-                <a href="#" class="nav-link" onclick="filterCategory('all')">Shop All</a>
+            <div class="nav-links">
+                <span class="nav-link active" onclick="navigateTo('home')">Home</span>
+                <span class="nav-link" onclick="navigateTo('shop', 'all')">Catalog</span>
                 
-                <!-- NEW: Hover Dropdown -->
-                <div class="nav-item-dropdown">
-                    <button class="nav-link dropdown-trigger">
-                        Categories <i data-lucide="chevron-down" class="chevron-icon"></i>
+                <div class="dropdown-wrapper">
+                    <button class="dropdown-trigger">
+                        Categories <i data-lucide="chevron-down" style="width:14px; margin-left:4px;"></i>
                     </button>
-                    <div id="categoryDropdown" class="dropdown-menu">
-                        <!-- Categories injected here by JS -->
+                    <div id="catDropdown" class="dropdown-menu">
+                        <!-- Populated via JS -->
                     </div>
                 </div>
+            </div>
 
-                <a href="#" class="nav-link" onclick="filterCategory('laptops')">Laptops</a>
-                <a href="#" class="nav-link" onclick="filterCategory('beauty')">Beauty</a>
-                <a href="#" class="nav-link" onclick="filterCategory('home-decoration')">Home</a>
-                <a href="#" class="nav-link" onclick="filterCategory('groceries')">Grocery</a>
-            </nav>
-
-            <!-- Icons -->
             <div class="nav-actions">
-                <button class="icon-btn" onclick="document.getElementById('searchInput').focus()"><i data-lucide="search"></i></button>
-                <button onclick="toggleCart()" class="icon-btn cart-btn-wrapper">
-                    <i data-lucide="shopping-bag"></i>
-                    <span id="cartCountBadge" class="cart-badge hidden">0</span>
+                <button class="icon-btn" onclick="toggleTheme()" aria-label="Toggle Theme" id="themeBtn">
+                    <i data-lucide="moon" style="width:20px;"></i>
+                </button>
+                <button class="icon-btn" aria-label="Search" onclick="navigateTo('shop'); document.getElementById('searchProduct').focus()">
+                    <i data-lucide="search" style="width:20px;"></i>
+                </button>
+                <button class="icon-btn" aria-label="Cart" onclick="toggleCart()">
+                    <i data-lucide="shopping-bag" style="width:20px;"></i>
+                    <span id="cartBadge" class="cart-badge hidden">0</span>
                 </button>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- HERO SECTION -->
-    <div class="hero-section">
-        <h1 class="hero-title">Only Shop. <span>Quality in every product.</span></h1>
+    <!-- === HOME VIEW === -->
+    <main id="view-home" class="view-section">
         
-        <!-- Filter Tabs -->
-        <div class="tabs-container">
-            <div class="tabs-scroll">
-                <button class="filter-tab active" onclick="filterCategory('all', this)">All</button>
-                <button class="filter-tab" onclick="filterCategory('laptops', this)">Computers</button>
-                <button class="filter-tab" onclick="filterCategory('beauty', this)">Beauty</button>
-                <button class="filter-tab" onclick="filterCategory('furniture', this)">Furniture</button>
-                <button class="filter-tab" onclick="filterCategory('groceries', this)">Grocery</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN PRODUCT AREA -->
-    <main class="main-content">
-        <div class="container">
+        <!-- HERO -->
+        <section class="hero">
+            <div class="hero-overlay"></div>
+            <!-- Slider Images -->
+            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop" class="hero-img active" alt="Tech">
+            <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop" class="hero-img" alt="Store">
             
-            <div class="section-header">
-                <span class="section-title">New Arrivals</span>
-                
-                <div class="controls-wrapper">
-                    <div class="search-wrapper">
-                        <i data-lucide="search" class="search-icon-small"></i>
-                        <input type="text" id="searchInput" class="search-input" placeholder="Search products...">
-                    </div>
+            <div class="hero-content">
+                <h1 class="hero-title">Future Ready.<br>Designed for You.</h1>
+                <p class="hero-text">Experience the next generation of shopping with premium electronics, minimalist decor, and sustainable lifestyle gear.</p>
+                <div>
+                    <button class="btn-primary" onclick="navigateTo('shop', 'all')">Shop Collection <i data-lucide="arrow-right" style="width:18px"></i></button>
+                    <button class="btn-outline" onclick="navigateTo('shop', 'laptops')">View Tech</button>
+                </div>
+            </div>
+        </section>
 
-                    <select id="sortSelect" class="sort-select">
-                        <option value="default">Relevance</option>
-                        <option value="rating">Top Rated</option>
-                        <option value="low">Price: Low to High</option>
-                        <option value="high">Price: High to Low</option>
-                    </select>
+        <!-- BENTO CATEGORIES -->
+        <section class="container">
+            <div class="section-header">
+                <h2 class="section-title">Explore Categories</h2>
+                <span onclick="navigateTo('shop', 'all')" class="link-accent">Browse All <i data-lucide="arrow-right" style="width:16px;"></i></span>
+            </div>
+
+            <div class="bento-grid">
+                <!-- Large: Laptops (Dynamic Content) -->
+                <div id="bento-laptop" class="bento-card reveal large" onclick="navigateTo('shop', 'laptops')">
+                    <div class="bento-info">
+                        <div class="bento-cat">Performance</div>
+                        <div class="bento-name">Pro Laptops</div>
+                    </div>
+                    <!-- Image populated by JS based on rating -->
+                    <img id="bento-laptop-img" src="" class="bento-img" alt="Laptops">
+                </div>
+
+                <!-- Medium: Beauty -->
+                <div class="bento-card reveal medium" onclick="navigateTo('shop', 'beauty')">
+                    <div class="bento-info">
+                        <div class="bento-cat">Self Care</div>
+                        <div class="bento-name">Beauty & Wellness</div>
+                    </div>
+                    <!-- Static fallback valid image -->
+                    <img src="https://cdn.dummyjson.com/products/images/beauty/Red%20Lipstick/thumbnail.png" class="bento-img" style="width: 40%;" alt="Beauty">
+                </div>
+
+                <!-- Regular: Groceries -->
+                <div class="bento-card reveal" onclick="navigateTo('shop', 'groceries')">
+                    <div class="bento-info">
+                        <div class="bento-cat">Daily</div>
+                        <div class="bento-name">Essentials</div>
+                    </div>
+                    <img src="https://cdn.dummyjson.com/products/images/groceries/Apple/thumbnail.png" class="bento-img" style="width: 50%; right:0;" alt="Food">
+                </div>
+
+                <!-- Regular: Home (Dynamic Content) -->
+                <div id="bento-decor" class="bento-card reveal" onclick="navigateTo('shop', 'home-decoration')">
+                    <div class="bento-info">
+                        <div class="bento-cat">Interior</div>
+                        <div class="bento-name">Decor</div>
+                    </div>
+                    <!-- Image populated by JS based on rating -->
+                    <img id="bento-decor-img" src="" class="bento-img" style="width: 60%; right:-10px;" alt="Decor">
+                </div>
+            </div>
+        </section>
+
+        <!-- TREND 8: AI Personalization (Simulated) -->
+        <section class="container">
+            <div class="section-header">
+                <h2 class="section-title">Highest Rated <span style="font-size:0.8rem; background:var(--star-gold); padding:2px 8px; border-radius:4px; vertical-align:middle; margin-left:10px; color:black; font-weight:700;">TOP PICKS</span></h2>
+            </div>
+            <div id="topRatedGrid" class="product-grid">
+                <div class="spinner"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- === SHOP VIEW === -->
+    <main id="view-shop" class="view-section hidden">
+        <div class="container" style="padding-top: 3rem;">
+            
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1 id="shopPageTitle" style="font-size: 3.5rem; font-weight: 800; letter-spacing:-0.03em;">All Products</h1>
+                <div class="tabs-wrap">
+                    <button class="tab-btn active" onclick="filterCategory('all', this)">All</button>
+                    <button class="tab-btn" onclick="filterCategory('laptops', this)">Tech</button>
+                    <button class="tab-btn" onclick="filterCategory('beauty', this)">Beauty</button>
+                    <button class="tab-btn" onclick="filterCategory('furniture', this)">Furniture</button>
+                    <button class="tab-btn" onclick="filterCategory('groceries', this)">Essentials</button>
                 </div>
             </div>
 
-            <!-- Loader -->
-            <div id="loader" class="loader-container">
-                <div class="spinner"></div>
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i data-lucide="search" style="color: var(--text-muted); width: 20px;"></i>
+                    <input type="text" id="searchProduct" class="search-input" placeholder="Ask or search for products...">
+                    <!-- Trend 7: Voice UI Icon -->
+                    <i data-lucide="mic" class="voice-icon" title="Voice Search (Simulated)"></i>
+                </div>
+                <div style="height:24px; width:1px; background:var(--border-subtle);"></div>
+                <select id="sortSort" style="background:transparent; color:var(--text-main); border:none; font-family:inherit; cursor:pointer; font-weight:500;">
+                    <option value="def" style="background:#222; color:white;">Relevance</option>
+                    <option value="price_low" style="background:#222; color:white;">Price: Low to High</option>
+                    <option value="price_high" style="background:#222; color:white;">Price: High to Low</option>
+                    <option value="rating" style="background:#222; color:white;">Top Rated</option>
+                </select>
             </div>
 
-            <!-- Grid -->
-            <div id="productContainer" class="product-grid hidden">
-                <!-- Injected via JS -->
-            </div>
-             
-             <!-- Empty State -->
-             <div id="noResults" class="empty-state hidden">
-                <p>No products found matching your search.</p>
-            </div>
+            <div id="shopGrid" class="product-grid"></div>
+            <div id="emptyMsg" class="hidden" style="text-align:center; padding: 4rem; color: var(--text-muted);">No products found matching your search.</div>
+        
         </div>
     </main>
 
-    <!-- CART SIDEBAR -->
-    <div id="cartOverlay" class="cart-overlay hidden" onclick="toggleCart()"></div>
-    <div id="cartSidebar" class="cart-sidebar">
-        
-        <div class="cart-header">
-            <h2>Your Bag.</h2>
-            <button onclick="toggleCart()" class="close-btn"><i data-lucide="x"></i></button>
+    <!-- FOOTER -->
+    <footer class="container">
+        <div class="footer-grid">
+            <div>
+                <div class="logo" style="margin-bottom: 1.5rem;">OS OnlyShop</div>
+                <p style="max-width: 300px; line-height: 1.8;">
+                    Crafting the future of retail with sustainable design, AI personalization, and inclusive experiences for everyone.
+                </p>
+            </div>
+            <div class="contact-info">
+                <h4 style="color: var(--text-main); font-weight: 700; margin-bottom: 1.5rem; letter-spacing:0.02em;">CONTACT SUPPORT</h4>
+                <div style="display: flex; gap: 0.8rem; margin-bottom: 0.8rem; align-items: center;">
+                    <i data-lucide="user" style="width: 18px;"></i> <span style="font-weight:500;">Abhishek Rai</span>
+                </div>
+                <div style="display: flex; gap: 0.8rem; align-items: center;">
+                    <i data-lucide="mail" style="width: 18px;"></i> 
+                    <a href="mailto:abhishek.rai@hestabit.in">abhishek.rai@hestabit.in</a>
+                </div>
+            </div>
         </div>
-        
-        <div id="cartItems" class="cart-items">
-            <!-- Items -->
+        <div style="margin-top: 4rem; text-align: center; color: #888; font-size: 0.8rem; font-weight:500;">
+            &copy; 2025 ONLY SHOP INC. FUTURE READY.
         </div>
+    </footer>
 
+    <!-- CART SIDEBAR -->
+    <div id="cartOverlay" class="cart-overlay" onclick="toggleCart()"></div>
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h2 style="font-size: 1.5rem; font-weight: 700;">Your Cart (<span id="cartCountHeader">0</span>)</h2>
+            <button onclick="toggleCart()" style="background:none; border:none; color:var(--text-main); cursor:pointer;"><i data-lucide="x" style="width:24px;"></i></button>
+        </div>
+        <div id="cartList" class="cart-items"></div>
         <div class="cart-footer">
-            <div class="cart-row">
-                <span>Subtotal</span>
-                <span class="font-medium" id="cartTotal">$0.00</span>
-            </div>
-            <div class="cart-row">
-                <span>Shipping</span>
-                <span class="font-medium">Free</span>
-            </div>
-            <div class="cart-row total-row">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 1.2rem; font-weight: 700;">
                 <span>Total</span>
-                <span id="cartFinalTotal">$0.00</span>
+                <span id="cartTotalDisplay">$0.00</span>
             </div>
-            <button class="btn-checkout">
-                Check Out
-            </button>
+            <button onclick="checkout()" class="btn-primary" style="width: 100%; display: flex; justify-content: center;">Checkout Now</button>
         </div>
     </div>
-
-    <!-- Main Logic Script -->
     <script src="app.js"></script>
 </body>
 </html>
