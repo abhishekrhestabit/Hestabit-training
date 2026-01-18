@@ -1,5 +1,4 @@
- // --- APP STATE ---
-        let inventory = [];
+  let inventory = [];
         let cart = JSON.parse(localStorage.getItem('os_cart')) || [];
         let activeCat = 'all';
         let slideIdx = 0;
@@ -59,8 +58,13 @@
                 renderHomeRated(inventory);
                 renderShop(inventory); // Pre-load shop
 
-                // Observe initial static elements
-                document.querySelectorAll('.reveal').forEach(el => scrollObserver.observe(el));
+                // Observe initial static elements with Staggered Delay
+                document.querySelectorAll('.reveal').forEach((el, i) => {
+                    el.style.transitionDelay = `${i * 100}ms`; // Cascade effect
+                    scrollObserver.observe(el);
+                    // Remove delay after animation so hover isn't laggy
+                    setTimeout(() => { el.style.transitionDelay = '0s'; }, 1000);
+                });
 
             } catch(e) {
                 console.error(e);
@@ -164,12 +168,19 @@
             // Get strictly high rated items for "AI Picks"
             const top = products.filter(p => p.rating >= 4.7).slice(0, 4);
             els.ratedGrid.innerHTML = '';
-            top.forEach(p => {
+            top.forEach((p, i) => { // Added index for stagger
                 const card = createProductCard(p);
                 card.classList.add('reveal'); // Add animation class
+                card.style.transitionDelay = `${i * 100}ms`; // 100ms stagger
                 els.ratedGrid.appendChild(card);
                 scrollObserver.observe(card); // Observe
+                
+                // Clear delay after animation
+                setTimeout(() => { card.style.transitionDelay = '0s'; }, 1200);
             });
+            
+            // Re-attach tilt after new DOM elements are created
+            attachTiltListeners();
             if(window.lucide) lucide.createIcons();
         }
 
@@ -179,13 +190,20 @@
                 els.emptyMsg.classList.remove('hidden');
             } else {
                 els.emptyMsg.classList.add('hidden');
-                products.forEach(p => {
+                products.forEach((p, i) => { // Added index for stagger
                     const card = createProductCard(p);
                     card.classList.add('reveal'); // Add animation class
+                    // Stagger (mod 12 to reset delay for long lists so user doesn't wait forever)
+                    card.style.transitionDelay = `${(i % 12) * 50}ms`; 
                     els.shopGrid.appendChild(card);
-                    scrollObserver.observe(card); // Observe
+                    scrollObserver.observe(card);
+                    
+                    // Clear delay after animation
+                    setTimeout(() => { card.style.transitionDelay = '0s'; }, 1200);
                 });
             }
+            // Re-attach tilt after new DOM elements are created
+            attachTiltListeners();
             if(window.lucide) lucide.createIcons();
         }
 
@@ -278,6 +296,48 @@
 
         els.search.addEventListener('input', applyFilters);
         els.sort.addEventListener('change', applyFilters);
+
+        // --- 3D TILT LOGIC ---
+        function attachTiltListeners() {
+            const cards = document.querySelectorAll('.bento-card, .p-img-container');
+            
+            cards.forEach(card => {
+                // Prevent duplicate listeners
+                if(card.dataset.tiltAttached) return;
+                card.dataset.tiltAttached = "true";
+
+                card.addEventListener('mouseenter', () => {
+                    // Update: Added slight transition instead of 'none' for smoothness
+                    // This adds "weight" so it doesn't snap instantly
+                    card.style.transition = 'transform 0.2s ease-out';
+                });
+
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    // Update: Reduced limit from 7 to 3.5 for very subtle premium feel
+                    const limit = 3.5; 
+                    
+                    // Rotate Y based on X position, Rotate X based on Y position (inverted)
+                    const rotateY = ((x - centerX) / centerX) * limit;
+                    const rotateX = ((y - centerY) / centerY) * -limit;
+
+                    // Update: Reduced scale from 1.05 to 1.02
+                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    // Re-enable transition for smooth reset
+                    card.style.transition = 'transform 0.5s ease';
+                    card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+                });
+            });
+        }
 
         // --- CART ---
         window.addToCart = (id) => {

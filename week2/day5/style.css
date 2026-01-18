@@ -1,5 +1,4 @@
-    /* --- TRENDS 2025: VARIABLES --- */
-        :root {
+   :root {
             /* Default Dark Mode */
             --bg-body: #0a0a0a;       
             --bg-card: #161616;       
@@ -25,7 +24,7 @@
             --control-bar-bg: rgba(22, 22, 22, 0.6);
             
             /* Layout */
-            --container-max: 92%;
+            --container-max: 92%; 
             --radius-card: 20px;
             --radius-btn: 12px;
         }
@@ -34,21 +33,15 @@
         [data-theme="light"] {
             --bg-body: #ffffff;
             --bg-card: #f3f4f6;
-            
-            /* Note: Navbar variables are NOT overridden here to keep it black */
-            
             --text-main: #111111;
             --text-muted: #666666;
             --text-inv: #ffffff;
-            
             --border-subtle: #e5e7eb;
-            
             --btn-outline-bg: rgba(0,0,0,0.05);
             --btn-outline-border: rgba(0,0,0,0.1);
             --control-bar-bg: rgba(255, 255, 255, 0.8);
         }
 
-        /* Trend 10: Advanced Accessibility */
         * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
         
         body {
@@ -60,10 +53,9 @@
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease; /* Smooth Theme Switch */
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* Keyboard Focus States */
         *:focus-visible {
             outline: 2px solid var(--accent-primary);
             outline-offset: 4px;
@@ -80,7 +72,7 @@
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Scroll Reveal Animation Classes */
+        /* Scroll Reveal */
         .reveal {
             opacity: 0;
             transform: translateY(40px);
@@ -93,7 +85,7 @@
 
         /* --- NAVIGATION --- */
         .navbar {
-            background-color: var(--nav-bg-fixed); /* Always dark */
+            background-color: var(--nav-bg-fixed); 
             backdrop-filter: blur(var(--bg-nav-blur));
             -webkit-backdrop-filter: blur(var(--bg-nav-blur));
             border-bottom: 1px solid var(--nav-border-fixed);
@@ -107,7 +99,7 @@
         .nav-inner { height: 100%; display: flex; justify-content: space-between; align-items: center; }
 
         .logo {
-            color: var(--nav-text-fixed); /* Always white */
+            color: var(--nav-text-fixed);
             font-size: 1.4rem;
             font-weight: 800;
             text-decoration: none;
@@ -123,7 +115,7 @@
 
         .nav-links { display: flex; gap: 3rem; align-items: center; }
         .nav-link {
-            color: var(--nav-text-muted-fixed); /* Always grey */
+            color: var(--nav-text-muted-fixed);
             font-size: 0.95rem;
             font-weight: 500;
             text-decoration: none;
@@ -144,7 +136,7 @@
         .dropdown-trigger:hover { color: var(--nav-text-fixed); }
         .dropdown-menu {
             position: absolute; top: 120%; left: -10px;
-            background: var(--bg-card); /* Adapts to theme */
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             min-width: 240px;
             max-height: 400px;
@@ -168,7 +160,7 @@
         .nav-actions { display: flex; gap: 0.75rem; align-items: center; }
         .icon-btn { 
             background: transparent; border: 1px solid transparent; 
-            cursor: pointer; color: var(--nav-text-fixed); /* Always white */
+            cursor: pointer; color: var(--nav-text-fixed);
             width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
             border-radius: 50%; transition: all 0.3s; position: relative;
         }
@@ -195,7 +187,6 @@
             border-bottom: 1px solid var(--border-subtle);
         }
         
-        /* Hero always dark or adapts? Let's keep hero images dark-ish but overlay adapts */
         .hero-overlay {
             position: absolute; inset: 0;
             background: linear-gradient(to top, var(--bg-body) 10%, transparent 80%),
@@ -217,9 +208,6 @@
         }
         @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Hero Text needs to be legible on dark images, so we force light text here or use text-main? 
-           Images are dark, so text should likely stay light regardless of theme. 
-           Let's override for Hero specifically. */
         .hero-title {
             color: #ffffff; 
             font-size: clamp(3rem, 6vw, 5.5rem); 
@@ -236,15 +224,13 @@
         }
 
         .btn-primary {
-            background: #ffffff; color: black; /* Standard primary btn */
+            background: #ffffff; color: black;
             padding: 1rem 2.5rem; border-radius: 99px;
             font-weight: 700; text-decoration: none; border: none; cursor: pointer;
             transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px;
             box-shadow: 0 0 20px rgba(255,255,255,0.1);
             animation: pulseBtn 3s infinite;
         }
-        /* In light mode, primary button might need contrast. Let's stick to white/black for hero action. */
-        
         @keyframes pulseBtn {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
             70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
@@ -288,24 +274,24 @@
             border-radius: var(--radius-card);
             padding: 2rem;
             position: relative; overflow: hidden;
-            cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer; 
+            /* REMOVED CSS HOVER TRANSFORM to allow JS tilt */
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex; flex-direction: column; justify-content: flex-start;
             border: 1px solid var(--border-subtle);
             transform-style: preserve-3d;
         }
         .bento-card:hover { 
-            transform: translateY(-10px) rotateX(2deg); 
+            /* Tilt handled by JS */
             border-color: var(--accent-primary); 
             box-shadow: 0 20px 50px rgba(0,0,0,0.15);
         }
         
         .bento-card.large { grid-column: span 2; grid-row: span 2; background: linear-gradient(145deg, #222, #111); }
-        /* Override large card for light mode specifically to keep it dark or make it grey? Let's make it dark grey in light mode for contrast */
         [data-theme="light"] .bento-card.large { background: linear-gradient(145deg, #333, #111); color: white; }
-        
         .bento-card.medium { grid-column: span 2; }
         
-        .bento-info { z-index: 2; position: relative; transform: translateZ(20px); }
+        .bento-info { z-index: 2; position: relative; transform: translateZ(20px); pointer-events: none; }
         .bento-cat { color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
         .bento-name { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
         
@@ -314,9 +300,10 @@
             width: 70%; height: auto; object-fit: contain;
             transition: transform 0.5s ease;
             transform: translateZ(10px);
+            pointer-events: none;
         }
         .bento-card.large .bento-img { width: 85%; right: -15%; bottom: -15%; }
-        .bento-card:hover .bento-img { transform: scale(1.1) translateZ(10px); }
+        /* Scale effect handled by JS on hover now for better sync */
 
         /* --- CONTROLS --- */
         .controls-bar {
@@ -345,7 +332,8 @@
         
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            /* Updated: Explicitly set to 4 columns max */
+            grid-template-columns: repeat(4, 1fr);
             gap: 2.5rem;
         }
 
@@ -354,7 +342,6 @@
             display: flex; flex-direction: column;
             transition: all 0.3s;
             height: 100%;
-            group: hover;
         }
         
         .p-img-container {
@@ -366,15 +353,18 @@
             margin-bottom: 1.25rem;
             overflow: hidden;
             border: 1px solid var(--border-subtle);
+            /* REMOVED CSS HOVER TRANSFORM to allow JS tilt */
             transition: all 0.4s ease;
+            transform-style: preserve-3d;
         }
         .product-card:hover .p-img-container { 
             border-color: var(--accent-primary); 
-            transform: translateY(-8px) scale(1.02);
+            /* Tilt handled by JS */
             box-shadow: 0 15px 40px rgba(0,0,0,0.1);
         }
         
-        .p-img { max-width: 80%; max-height: 80%; object-fit: contain; transition: transform 0.4s; }
+        .p-img { max-width: 80%; max-height: 80%; object-fit: contain; transition: transform 0.4s; pointer-events: none; }
+        /* We can keep this scale as it's inside the container */
         .product-card:hover .p-img { transform: scale(1.12) rotate(2deg); }
 
         .p-info { flex-grow: 1; display: flex; flex-direction: column; padding: 0 0.5rem; }
@@ -452,10 +442,18 @@
         .contact-info a:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
 
         /* --- RESPONSIVE --- */
+        /* Added intermediate breakpoint for smoother grid transition */
+        @media (max-width: 1200px) {
+            .product-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
         @media (max-width: 900px) {
             .bento-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 280px; }
             .bento-card.large { grid-column: span 2; grid-row: span 2; }
             .bento-card.medium { grid-column: span 2; }
+            
+            /* Updated: 2 columns for tablets/mobile landscape */
+            .product-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {
@@ -466,4 +464,9 @@
             .nav-links { display: none; }
             .controls-bar { flex-direction: column; align-items: stretch; border-radius: 20px; }
             .btn-outline { margin-left: 0; margin-top: 1rem; display: block; text-align: center; }
+        }
+
+        /* Added: Single column for small mobile */
+        @media (max-width: 600px) {
+            .product-grid { grid-template-columns: 1fr; }
         }
