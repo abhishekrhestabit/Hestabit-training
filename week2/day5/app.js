@@ -165,7 +165,7 @@
         }
 
         function renderHomeRated(products) {
-            // Get strictly high rated items for "AI Picks"
+            // Get strictly high rated items for home
             const top = products.filter(p => p.rating >= 4.7).slice(0, 4);
             els.ratedGrid.innerHTML = '';
             top.forEach((p, i) => { // Added index for stagger
@@ -280,7 +280,7 @@
                     list = list.filter(p => p.category === activeCat);
                 }
             }
-
+            
             // Search
             const term = els.search.value.toLowerCase();
             if(term) list = list.filter(p => p.title.toLowerCase().includes(term));
