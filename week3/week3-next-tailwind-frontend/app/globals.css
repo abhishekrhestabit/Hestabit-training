@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  /* You can define custom colors here in v4, but we will use arbitrary values as requested */
+}
+
+/* Apply the dashboard background color globally */
+body {
+  background-color: #f8f9fc;
+}
