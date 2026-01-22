@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/ui/Sidebar";
 import Navbar from "@/components/ui/Navbar";
-
+import Sidebar from "@/components/ui/Sidebar";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -15,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SB Admin Dashboard",
-  description: "Next.js 15 Dashboard",
+  title: "Next.js App",
+  description: "Day 3 Routing Exercise",
 };
 
 export default function RootLayout({
@@ -26,28 +25,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased text-[#5a5c69] bg-[#f8f9fc]`}>
-        
-        {/* 1. TOP: FULL WIDTH NAVBAR */}
-        {/* Positioned fixed at the top, z-index higher than sidebar */}
+      {/* This is now a clean shell. 
+        No Sidebar. No Navbar. Just fonts and global CSS. 
+      */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}>
         <Navbar />
+        <Sidebar />
 
-        {/* 2. FLEX CONTAINER FOR SIDEBAR AND CONTENT */}
-        <div className="flex pt-16"> {/* pt-16 pushes everything down by header height */}
-          
-          {/* Sidebar (Fixed Left, starts below header) */}
-          <Sidebar />
-
-          {/* Main Content Wrapper */}
-          {/* ml-64: Pushes content right to respect the sidebar width */}
-          <div className="flex-1 ml-64 min-h-screen">
-            <main className="p-6">
-              {children}
-            </main>
-          </div>
-          
-        </div>
-
+        {children}
       </body>
     </html>
   );
