@@ -1,10 +1,11 @@
+"use client"; 
 import Button from "@/components/ui/Button";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-900 text-white">
+    <div className="bg-blue-500 text-black w-screen  flex flex-col justify-center items-center space-y-10 py-20">
       <div className="text-center space-y-6 max-w-lg px-6">
-        <h1 className="text-5xl font-bold tracking-tight">SB Admin 2</h1>
+        <h1 className="text-5xl font-bold tracking-tight">Hestabit</h1>
         <p className="text-blue-100 text-lg">
           A modern dashboard template rebuilt with Next.js 15, Tailwind CSS, and Atomic Design principles.
         </p>

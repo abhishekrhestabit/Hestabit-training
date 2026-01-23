@@ -1,13 +1,12 @@
 
 export default function DashboardLayout({ children }) {
   return (
-    <div className="flex bg-[#f8f9fc]">
+    <div className="flex-1 w-full bg-[#f8f9fc]">
 
       {/* 2. FLEX CONTAINER FOR SIDEBAR AND CONTENT */}
-      <div className="flex pt-16 w-full">
+      <div className="flex-1  h-[calc(100vh-4rem)] overflow-y-auto w-100%">
         
-        {/* Main Content Wrapper */}
-          <main className="flex-1 ml-64 min-h-screen p-6">
+          <main className="flex-1 p-6 w-full">
             {children}
           </main>
         

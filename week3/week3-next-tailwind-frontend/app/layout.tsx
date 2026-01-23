@@ -1,3 +1,6 @@
+"use client";
+import React, { useState } from "react";
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -13,26 +16,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Next.js App",
-  description: "Day 3 Routing Exercise",
-};
+
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const [open, setOpen] = useState(true);
+
+  
   return (
     <html lang="en">
       {/* This is now a clean shell. 
         No Sidebar. No Navbar. Just fonts and global CSS. 
       */}
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}>
-        <Navbar />
-        <Sidebar />
+        <Navbar toggleSidebar={() => setOpen(!open)} />
+        <div className="flex h-[calc(100vh-4rem)]">        
+          <Sidebar toggleSidebar={() => setOpen(!open)}  isopen={open}/>
+          {children}
+        </div>
 
-        {children}
+        
       </body>
     </html>
   );
