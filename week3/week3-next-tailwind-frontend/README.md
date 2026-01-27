@@ -128,6 +128,8 @@ A complete multi-page frontend with no backend, demonstrating real user flows.
 
 ![Day3](screenshots/Day5.png)
 ![Day3](screenshots/Day5_1.png)
+![Day3](screenshots/Day5_2.png)
+
 
 ---
 
