@@ -1,25 +1,71 @@
 'use client';
-import Button from './Button';
-import Sidebar from './Sidebar';
-export default function Navbar({toggleSidebar}) {
+import { usePathname } from 'next/navigation'; 
+import Link from 'next/link';
+import Button from '@/components/ui/Button'; // Fixed import casing
+
+export default function Navbar({ toggleSidebar }) {
+  const pathname = usePathname();
+  
+  // Logic 1: Are we on the Dashboard?
+  const isDashboard = pathname?.startsWith('/dashboard');
+  
+  // Logic 2: Are we on the Home Page?
+  const isHomePage = pathname === '/';
+
   return (
-    // fixed top-0 w-full: Forces the navbar to span 100% width at the very top
-    // z-30: Higher than the sidebar (z-20)
-    <header className=" top-0 left-0 w-full h-16 bg-[#5a87e8] shadow-md flex items-center justify-between px-6 ">
-      
-      
+    // Dynamic Class: 
+    // If Home Page -> bg-gray-900 (Matches Hero Section)
+    // If Dashboard -> bg-[#5a87e8] (Brand Blue)
+    // transition-colors -> Makes the color switch smooth instead of snapping
+    <header 
+      className={`
+        top-0 left-0 w-full h-16 shadow-md flex items-center justify-between px-6 z-30 transition-colors duration-300
+        ${isHomePage ? 'bg-gray-900' : 'bg-[#5a87e8]'}
+      `}
+    >
       
       {/* 1. Brand Title */}
       <div className="text-white text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-        <Button variant='primary' className='' onClick={toggleSidebar}><span className=''>☰</span></Button>
-        <span>Start Bootstrap</span>
+        {isDashboard && (
+          <Button 
+            variant='primary' 
+            className='bg-transparent hover:bg-white/20 border-none p-2 h-auto' 
+            onClick={toggleSidebar}
+          >
+            <span className='text-xl'>☰</span>
+          </Button>
+        )}
+        
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <span>Start Bootstrap</span>
+        </Link>
       </div>
 
-      {/* 2. Right Side: Search + Profile */}
+      {/* 2. Right Side: Search + Actions */}
       <div className="flex items-center space-x-4">
         
-        {/* Search Bar */}
-        <div className="hidden md:flex bg-white rounded-md overflow-hidden w-[300px] border border-blue-400/30">
+        {/* --- CONDITIONAL LOGIN BUTTON --- */}
+        {!isDashboard && (
+          <Link href="/login">
+            <Button 
+              variant="danger" 
+              size="md" 
+              // Fixed: Removed invalid 'text-black-100' and replaced with 'text-gray-900'
+              className={`
+                border-none font-bold shadow-sm transition-colors duration-300
+                ${isHomePage 
+                  ? 'bg-blue-600 text-white hover:bg-blue-500' // Dark theme button
+                  : 'bg-danger text-[#4e73df] hover:bg-gray-100 hover:text-gray-900' // Light theme button
+                }
+              `}
+            >
+              Login
+            </Button>
+          </Link>
+        )}
+
+        {/* Search Bar - Hidden on mobile (sm:hidden) */}
+        <div className="hidden sm:flex bg-white rounded-md overflow-hidden w-[300px] border border-blue-400/30">
           <input 
             type="text" 
             placeholder="Search for..." 
@@ -33,17 +79,19 @@ export default function Navbar({toggleSidebar}) {
           </button>
         </div>
 
-        {/* User Profile */}
-        <div className="flex items-center cursor-pointer">
-          <a href="/dashboard/profile">
-            <div className="h-9 w-9 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition border border-white/20">
-               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                 <circle cx="12" cy="7" r="4" />
-               </svg>
-            </div>
-          </a>
-        </div>
+        {/* User Profile - Only visible on Dashboard */}
+        {isDashboard && (
+          <div className="flex items-center cursor-pointer">
+            <Link href="/dashboard/profile">
+              <div className="h-9 w-9 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition border border-white/20">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                   <circle cx="12" cy="7" r="4" />
+                 </svg>
+              </div>
+            </Link>
+          </div>
+        )}
 
       </div>
 
