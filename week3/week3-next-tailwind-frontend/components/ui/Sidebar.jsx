@@ -12,24 +12,7 @@ export default function Sidebar({isopen, toggleSidebar}) {
       
       {/* Navigation */}
       <nav className="flex-1 py-6 font-bold text-[13px]">
-        
-        {/* Dashboard Link */}
-        <Link href="/dashboard" className="flex items-center px-4 py-3 text-white hover:text-white hover:bg-white/10 transition-colors">
-          <span className="mr-3 opacity-70">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m12 14 4-4" />
-              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-            </svg>
-          </span>
-          <span>Dashboard</span>
-        </Link>
 
-        {/* Divider */}
-        <hr className="my-3 border-white/20 mx-4" />
-
-        {/* Section Header */}
-        <div className="px-4 mb-1 text-[10px] text-white/50 uppercase font-bold">Interface</div>
-        
         <Link href="/" className="flex items-center px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors group">
           <span className="mr-3 opacity-50 group-hover:opacity-100">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -40,14 +23,35 @@ export default function Sidebar({isopen, toggleSidebar}) {
           <span>Home</span>
         </Link>
         
-     
+        {/* Dashboard Link */}
+        
         {/* Divider */}
         <hr className="my-3 border-white/20 mx-4" />
 
         {/* Section Header */}
+        <div className="px-4 mb-1 text-[10px] text-white/50 uppercase font-bold">Interface</div>
+        
+        
+        <Link href="/dashboard" className="flex items-center px-4 py-3 text-white hover:text-white hover:bg-white/10 transition-colors">
+          <span className="mr-3 opacity-70">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 14 4-4" />
+              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+            </svg>
+          </span>
+          <span>Dashboard</span>
+        </Link>
+
+     
+        {/* Divider */}
+        <hr className="my-3 border-white/20 mx-4" />
+
+        
+
+        {/* Section Header */}
         <div className="px-4 mb-1 text-[10px] text-white/50 uppercase font-bold">Addons</div>
 
-        <Link href="#" className="flex items-center px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors group">
+        <Link href="/about" className="flex items-center px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors group">
           <span className="mr-3 opacity-50 group-hover:opacity-100">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 3v18h18" />
@@ -56,10 +60,10 @@ export default function Sidebar({isopen, toggleSidebar}) {
                 <path d="M8 17v-3" />
              </svg>
           </span>
-          <span>Charts</span>
+          <span>About</span>
         </Link>
 
-        <Link href="#" className="flex items-center px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors group">
+        <Link href="/dashboard/users" className="flex items-center px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors group">
           <span className="mr-3 opacity-50 group-hover:opacity-100">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-7z" />

@@ -1,15 +1,30 @@
 "use client";
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import Badge from '@/components/ui/Badge';
+import Table from '@/components/ui/Table';
+// 1. Import the Table Components
+import {  TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 
-export default function Home() {
+import AreaChart from '@/components/charts/AreaChart';
+import PieChart from '@/components/charts/PieChart';
+
+export default function DashboardPage() {
   const [isModalOpen, setModalOpen] = useState(false);
 
+  // 2. Define Data Source (Hestabit Employees)
+  const employees = [
+    { id: 1, name: "Aarav Sharma", role: "Frontend Dev", status: "Present", time: "09:00 AM", department: "Engineering" },
+    { id: 2, name: "Vivaan Gupta", role: "Backend Dev", status: "Late", time: "10:15 AM", department: "Engineering" },
+    { id: 3, name: "Diya Patel", role: "Designer", status: "Present", time: "08:55 AM", department: "Design" },
+    { id: 4, name: "Ananya Singh", role: "HR Manager", status: "Absent", time: "-", department: "HR" },
+    { id: 5, name: "Kabir Das", role: "QA Engineer", status: "Present", time: "09:05 AM", department: "QA" },
+  ];
+
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="space-y-6">
       
       {/* --- PAGE HEADER --- */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4">
@@ -94,44 +109,78 @@ export default function Home() {
          
          {/* Main Chart Area */}
          <div className="lg:col-span-2 flex flex-col">
-            <Card noPadding className="h-full">
+            <Card noPadding className="h-full min-h-[400px]">
               {/* Header */}
               <div className="px-4 py-3 border-b border-gray-100 bg-[#f8f9fc] flex justify-between items-center rounded-t">
                   <h6 className="font-bold text-[#4e73df] text-sm">Earnings Overview</h6>
                   <button className="text-gray-400 hover:text-gray-600">⋮</button>
               </div>
               {/* Body */}
-              <div className="p-4 h-[20rem] flex flex-col items-center justify-center text-gray-400">
-                 <svg className="w-16 h-16 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                 <span className="text-sm">[ Area Chart Component Would Go Here ]</span>
+              <div className="p-4 h-[350px]">
+                 <AreaChart />
               </div>
             </Card>
          </div>
 
          {/* Pie Chart Area */}
          <div className="flex flex-col">
-           <Card noPadding className="h-full">
+           <Card noPadding className="h-full min-h-[400px]">
               {/* Header */}
               <div className="px-4 py-3 border-b border-gray-100 bg-[#f8f9fc] flex justify-between items-center rounded-t">
                   <h6 className="font-bold text-[#4e73df] text-sm">Revenue Sources</h6>
                   <button className="text-gray-400 hover:text-gray-600">⋮</button>
               </div>
               {/* Body */}
-              <div className="p-4 h-[20rem] flex flex-col items-center justify-center text-gray-400">
-                 <svg className="w-16 h-16 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-                 <span className="text-sm mb-4">[ Pie Chart Component ]</span>
-                 
-                 {/* Legend */}
-                 <div className="flex justify-center gap-2 mt-auto">
-                    <Badge variant="primary" className="font-normal">Direct</Badge>
-                    <Badge variant="success" className="font-normal">Social</Badge>
-                    <Badge variant="secondary" className="font-normal">Referral</Badge>
-                 </div>
+              <div className="p-4 h-[300px] flex items-center justify-center">
+                <PieChart />
+              </div>
+              <div className="pb-6 flex justify-center gap-4">
+                 <div className="flex items-center text-xs text-gray-600"><span className="w-3 h-3 rounded-full bg-[#4e73df] mr-1"></span> Direct</div>
+                 <div className="flex items-center text-xs text-gray-600"><span className="w-3 h-3 rounded-full bg-[#1cc88a] mr-1"></span> Social</div>
+                 <div className="flex items-center text-xs text-gray-600"><span className="w-3 h-3 rounded-full bg-[#36b9cc] mr-1"></span> Referral</div>
               </div>
            </Card>
          </div>
 
       </div>
+
+      {/* --- EMPLOYEE TABLE --- */}
+      <Card noPadding className="w-full overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-[#f8f9fc] flex justify-between items-center">
+            <h6 className="font-bold text-[#4e73df] text-sm">Hestabit Employee Attendance</h6>
+            <Button variant="secondary" size="sm" className="text-xs h-8">Export to CSV</Button>
+        </div>
+        
+        <Table>
+          <TableHeader>
+            <TableHead>Employee Name</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Check-in Time</TableHead>
+            <TableHead>Status</TableHead>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
+                <TableCell className="font-medium text-gray-900">{employee.name}</TableCell>
+                <TableCell>{employee.role}</TableCell>
+                <TableCell>{employee.department}</TableCell>
+                <TableCell>{employee.time}</TableCell>
+                <TableCell>
+                  <Badge 
+                    variant={
+                      employee.status === 'Present' ? 'success' : 
+                      employee.status === 'Late' ? 'warning' : 'danger'
+                    }
+                  >
+                    {employee.status}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* --- REPORT MODAL --- */}
       <Modal 
