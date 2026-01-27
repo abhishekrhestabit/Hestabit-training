@@ -16,7 +16,7 @@ export default function Navbar({ toggleSidebar }) {
     <header 
       className={`
         top-0 left-0 w-full h-16 shadow-md flex items-center justify-between px-6 z-30 transition-colors duration-300
-        ${isHomePage ? 'bg-gray-900' : 'bg-[#5a87e8]'}
+        ${isHomePage ? 'bg-gray-900' :  'bg-[#5a87e8]'}
       `}
     >
       
