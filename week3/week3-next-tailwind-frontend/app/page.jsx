@@ -18,7 +18,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-6 relative z-10 text-center max-w-5xl">
           <Badge variant="primary" className="mb-6 px-4 py-1.5 text-sm bg-blue-500/10 text-blue-300 border border-blue-500/20 backdrop-blur-md rounded-full">
             ✨ Introducing Hestabit 2.0
-          </Badge>
+          </Badge>    
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-tight">
             The Dashboard that <br />
