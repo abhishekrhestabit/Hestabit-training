@@ -15,8 +15,9 @@ module.exports = async function loadApp() {
 
   // Routes
   let routeCount = 0;
+  app.get('/', (_, res) => res.send('OK'));
 
-  app.get('/health', (_, res) => res.send('OK'));
+  app.get('/health', (_, res) => res.send('Health OK'));
   routeCount++;
 
   logger.info(`Routes mounted: ${routeCount} endpoints`);

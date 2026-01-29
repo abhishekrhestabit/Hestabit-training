@@ -11,9 +11,6 @@ const envFileMap = {
 
 const envFile = envFileMap[env];
 
-if (!envFile) {
-  throw new Error(`Invalid NODE_ENV: ${env}`);
-}
 
 dotenv.config({
   path: path.resolve(process.cwd(), envFile),
