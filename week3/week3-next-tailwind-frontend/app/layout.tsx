@@ -24,7 +24,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}>
         <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-        <div className="flex h-screen overflow-hidden w-full">
+        <div className="flex h-[calc(100vh-4rem)] overflow-hidden w-full">
           {/* Sidebar - Hidden on mobile if closed */}
           {/* We pass the toggle function so the Sidebar's close button works */}
           <Sidebar isopen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />

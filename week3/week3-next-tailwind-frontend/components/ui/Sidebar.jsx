@@ -13,7 +13,7 @@ export default function Sidebar({ isopen, toggleSidebar }) {
 
   return (
 
-    <aside className=" left-0   w-64 bg-[#4e73df] text-white flex flex-col shadow-lg overflow-y-auto">
+    <aside className=" left-0  w-64 bg-[#4e73df] text-white flex flex-col shadow-lg overflow-y-auto">
 
       {/* Navigation */}
       <nav className="flex-1 py-6 font-bold text-[13px]">

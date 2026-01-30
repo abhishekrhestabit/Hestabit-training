@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -160,6 +160,8 @@ export default function DashboardPage() {
             <TableHead>Status</TableHead>
           </TableHeader>
           <TableBody>
+
+            
             {employees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium text-gray-900">{employee.name}</TableCell>
@@ -181,7 +183,7 @@ export default function DashboardPage() {
           </TableBody>
         </Table>
       </Card>
-
+       
       {/* --- REPORT MODAL --- */}
       <Modal 
         isOpen={isModalOpen} 
