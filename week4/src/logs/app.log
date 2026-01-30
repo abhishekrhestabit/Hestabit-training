@@ -14,3 +14,16 @@
 [2026-01-29T12:23:41.580Z] INFO: Middlewares loaded
 [2026-01-29T12:23:41.581Z] INFO: Routes mounted: 1 endpoints
 [2026-01-29T12:23:41.584Z] INFO: Server started on port 3000
+[2026-01-30T14:10:07.825Z] INFO: Database connected
+[2026-01-30T14:12:11.943Z] INFO: Database connected
+[2026-01-30T14:12:11.945Z] INFO: ✅ Database loaded successfully
+[2026-01-30T14:12:11.952Z] INFO: Server started on port 3000
+[2026-01-30T14:12:11.952Z] INFO: 👉 Test Query: http://localhost:3000/api/v1/products?price[gte]=100&sort=-price
+[2026-01-30T14:15:34.301Z] INFO: Database connected
+[2026-01-30T14:15:34.303Z] INFO: ✅ Database loaded successfully
+[2026-01-30T14:15:34.310Z] INFO: Server started on port 3000
+[2026-01-30T14:15:34.310Z] INFO: 👉 Test Query: http://localhost:3000/api/v1/products?price[gte]=100&sort=-price
+[2026-01-30T14:20:47.650Z] INFO: Database connected
+[2026-01-30T14:20:47.652Z] INFO: ✅ Database loaded successfully
+[2026-01-30T14:20:47.658Z] INFO: Server started on port 3000
+[2026-01-30T14:20:47.658Z] INFO: 👉 Test Query: http://localhost:3000/api/v1/products?price[gte]=100&sort=-price
