@@ -53,13 +53,14 @@ userSchema.virtual('fullName').get(function() {
 
 // 3. Pre-save Hook: Hash password
 // Note: 'next' is a function that tells Mongoose to proceed to the actual save
-userSchema.pre('save', async function() {
+userSchema.pre('save', async function(next) {
     // Only hash if password was modified (prevents rehashing on updates)
     if (!this.isModified('password')) return next();
 
     // Simple hashing simulation (In production, use bcrypt)
     this.password = crypto.createHash('sha256').update(this.password).digest('hex');
-
+    
+    next();
 });
 
 module.exports = mongoose.model('Users', userSchema);

@@ -1,4 +1,4 @@
-const Product = require('../models/product.model');
+const Product = require('../models/Products');
 const AppError = require('../utils/AppError');
 
 /**
@@ -96,5 +96,21 @@ exports.restoreProduct = async (id) => {
   if (!product) {
     throw new AppError('No product found to restore', 404);
   }
+  return product;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// FIND PRODUCT BY ID
+// ═══════════════════════════════════════════════════════════════
+exports.findProductById = async (id) => {
+  const product = await Product.findById(id).populate('createdBy', 'firstName lastName email');
+  return product;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE PRODUCT
+// ═══════════════════════════════════════════════════════════════
+exports.createProduct = async (productData) => {
+  const product = await Product.create(productData);
   return product;
 };

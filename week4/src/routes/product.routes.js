@@ -1,17 +1,32 @@
 const express = require('express');
 const productController = require('../controllers/product.controller');
 
+// --- DAY 4 IMPORTS ---
+const validate = require('../middlewares/validate');
+const { 
+  createProduct, 
+  getProducts, 
+  getProduct, 
+  deleteProduct 
+} = require('../validations/product.validation');
+
 const router = express.Router();
 
-// Define routes for /api/v1/products
 
 router
   .route('/')
-  .get(productController.getAllProducts); // Maps GET / to getAllProducts
+  // GET /api/v1/products - Get all products with filters
+  .get(validate(getProducts), productController.getAllProducts)
+  // POST /api/v1/products - Create a new product
+  .post(validate(createProduct), productController.createProduct);
 
 router
   .route('/:id')
-  .delete(productController.deleteProduct) // Maps DELETE /:id to deleteProduct
-  .patch(productController.restoreProduct); // Maps PATCH /:id to restoreProduct (if you added restore logic)
+  // GET /api/v1/products/:id - Get single product
+  .get(validate(getProduct), productController.getProduct)
+  // DELETE /api/v1/products/:id - Soft delete product
+  .delete(validate(deleteProduct), productController.deleteProduct)
+  // PATCH /api/v1/products/:id - Restore deleted product
+  .patch(validate(getProduct), productController.restoreProduct);
 
 module.exports = router;

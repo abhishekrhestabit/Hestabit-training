@@ -22,16 +22,8 @@ module.exports = async function loadApp() {
 
   logger.info(`Routes mounted: ${routeCount} endpoints`);
 
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).json({ message: 'Route not found' });
-  });
-
-  // Error handler
-  app.use((err, req, res, next) => {
-    logger.error(err.message);
-    res.status(500).json({ message: 'Internal server error' });
-  });
+  // NOTE: Don't add 404 or error handlers here
+  // They will be added in index.js AFTER all routes are mounted
 
   return app;
 };

@@ -8,8 +8,10 @@ const catchAsync = (fn) => {
   };
 };
 
+// ═══════════════════════════════════════════════════════════════
+// GET ALL PRODUCTS
+// ═══════════════════════════════════════════════════════════════
 exports.getAllProducts = catchAsync(async (req, res, next) => {
-  // Delegate logic to Service
   const products = await productService.findAllProducts(req.query);
 
   res.status(200).json({
@@ -19,6 +21,38 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// GET SINGLE PRODUCT
+// ═══════════════════════════════════════════════════════════════
+exports.getProduct = catchAsync(async (req, res, next) => {
+  const product = await productService.findProductById(req.params.id);
+
+  if (!product) {
+    return next(new AppError('No product found with that ID', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: product,
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE PRODUCT
+// ═══════════════════════════════════════════════════════════════
+exports.createProduct = catchAsync(async (req, res, next) => {
+  const product = await productService.createProduct(req.body);
+
+  res.status(201).json({
+    success: true,
+    message: 'Product created successfully',
+    data: product,
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE PRODUCT (Soft Delete)
+// ═══════════════════════════════════════════════════════════════
 exports.deleteProduct = catchAsync(async (req, res, next) => {
   await productService.deleteProduct(req.params.id);
 
@@ -28,6 +62,9 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// RESTORE PRODUCT
+// ═══════════════════════════════════════════════════════════════
 exports.restoreProduct = catchAsync(async (req, res, next) => {
   const product = await productService.restoreProduct(req.params.id);
 

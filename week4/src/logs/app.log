@@ -31,3 +31,58 @@
 [2026-02-02T12:54:24.429Z] INFO: Database loaded successfully
 [2026-02-02T12:54:24.436Z] INFO: Server started on port 3000
 [2026-02-02T12:54:24.436Z] INFO: Test Query: http://localhost:3000/api/v1/products?price[gte]=100&sort=-price
+[2026-02-03T07:34:22.762Z] INFO: Database connected
+[2026-02-03T07:34:22.772Z] INFO: Middlewares loaded
+[2026-02-03T07:34:22.772Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:34:22.779Z] INFO: Server started on port 3000
+[2026-02-03T07:34:22.779Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:35:38.267Z] INFO: Database connected
+[2026-02-03T07:35:38.272Z] INFO: Middlewares loaded
+[2026-02-03T07:35:38.273Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:35:38.279Z] INFO: Server started on port 3000
+[2026-02-03T07:35:38.279Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:40:34.087Z] INFO: Database connected
+[2026-02-03T07:40:34.092Z] INFO: Middlewares loaded
+[2026-02-03T07:40:34.093Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:40:34.098Z] INFO: Server started on port 3000
+[2026-02-03T07:40:34.099Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:40:50.958Z] INFO: Database connected
+[2026-02-03T07:40:50.961Z] INFO: Middlewares loaded
+[2026-02-03T07:40:50.961Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:40:50.964Z] INFO: Server started on port 3000
+[2026-02-03T07:40:50.965Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:41:33.966Z] INFO: Database connected
+[2026-02-03T07:41:33.971Z] INFO: Middlewares loaded
+[2026-02-03T07:41:33.971Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:41:33.979Z] INFO: Server started on port 3000
+[2026-02-03T07:41:33.979Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:42:14.111Z] INFO: Database connected
+[2026-02-03T07:42:14.116Z] INFO: Middlewares loaded
+[2026-02-03T07:42:14.117Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:42:14.123Z] INFO: Server started on port 3000
+[2026-02-03T07:42:14.123Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:42:52.001Z] INFO: Database connected
+[2026-02-03T07:42:52.008Z] INFO: Middlewares loaded
+[2026-02-03T07:42:52.008Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:42:52.014Z] INFO: Server started on port 3000
+[2026-02-03T07:42:52.014Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:43:45.863Z] INFO: Database connected
+[2026-02-03T07:43:45.869Z] INFO: Middlewares loaded
+[2026-02-03T07:43:45.869Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:43:45.876Z] INFO: Server started on port 3000
+[2026-02-03T07:43:45.876Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:44:20.780Z] INFO: Database connected
+[2026-02-03T07:44:20.785Z] INFO: Middlewares loaded
+[2026-02-03T07:44:20.786Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:44:20.792Z] INFO: Server started on port 3000
+[2026-02-03T07:44:20.792Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:45:06.137Z] INFO: Database connected
+[2026-02-03T07:45:06.140Z] INFO: Middlewares loaded
+[2026-02-03T07:45:06.140Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:45:06.143Z] INFO: Server started on port 3000
+[2026-02-03T07:45:06.144Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products
+[2026-02-03T07:58:05.502Z] INFO: Database connected
+[2026-02-03T07:58:05.507Z] INFO: Middlewares loaded
+[2026-02-03T07:58:05.508Z] INFO: Routes mounted: 1 endpoints
+[2026-02-03T07:58:05.513Z] INFO: Server started on port 3000
+[2026-02-03T07:58:05.513Z] INFO: 👉 Test URL: http://localhost:3000/api/v1/products

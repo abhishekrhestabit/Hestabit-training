@@ -1,41 +1,50 @@
-const express = require('express');
+const express = require('express'); // Needed for json limit config
 const config = require('./config');
 const logger = require('./utils/logger');
-const connectDB = require('./loaders/db'); // Keeping your existing DB loader
+const connectDB = require('./loaders/db');
+const loadApp = require('./loaders/app');
 
-// --- DAY 3 IMPORTS ---
+// --- DAY 3 & 4 IMPORTS ---
+const setupSecurity = require('./middlewares/security');
 const productRouter = require('./routes/product.routes');
 const globalErrorHandler = require('./middlewares/error.middleware');
 const AppError = require('./utils/AppError');
 
 (async () => {
   try {
-    // 1. Establish Database Connection (Using your loader)
+    // 1. Connect to Database
     await connectDB();
-    logger.info('Database loaded successfully');
 
-    // 2. Initialize Express App directly here (Instead of loadApp)
-    const app = express();
+    // 2. Load the base Express App (from your loader)
+    const app = await loadApp();
 
-    // --- MIDDLEWARE ---
-    app.use(express.json());
+    // --- INTEGRATE NEW FEATURES ---
 
-    // --- ROUTES (DAY 3 LOGIC) ---
+    // A. Apply Security Middleware (Day 4)
+    // (Helmet, CORS, Rate Limit, Sanitization)
+    setupSecurity(app);
+
+    // B. Body Parser with Limit (Day 4)
+    // We explicitly set this to protect against large payloads.
+    // Note: If loadApp already does this, this line reinforces the limit.
+    app.use(express.json({ limit: '10kb' }));
+
+    // C. Mount Product Routes (Day 3)
     app.use('/api/v1/products', productRouter);
 
-    // --- 404 HANDLER ---
-    // FIX: Use regex /(.*)/ instead of '*' to avoid "Missing parameter name" error
+    // D. 404 Handler (Day 3)
+    // Must be after routes
     app.all(/(.*)/, (req, res, next) => {
       next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
     });
 
-    // --- GLOBAL ERROR HANDLER ---
+    // E. Global Error Handler (Day 3)
     app.use(globalErrorHandler);
 
     // 3. Start Server
     app.listen(config.port, () => {
       logger.info(`Server started on port ${config.port}`);
-      logger.info(`Test Query: http://localhost:${config.port}/api/v1/products?price[gte]=100&sort=-price`);
+      logger.info(`👉 Test URL: http://localhost:${config.port}/api/v1/products`);
     });
 
   } catch (err) {
