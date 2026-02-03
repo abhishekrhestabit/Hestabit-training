@@ -12,7 +12,7 @@ const AppError = require('./utils/AppError');
   try {
     // 1. Establish Database Connection (Using your loader)
     await connectDB();
-    logger.info('✅ Database loaded successfully');
+    logger.info('Database loaded successfully');
 
     // 2. Initialize Express App directly here (Instead of loadApp)
     const app = express();
@@ -35,7 +35,7 @@ const AppError = require('./utils/AppError');
     // 3. Start Server
     app.listen(config.port, () => {
       logger.info(`Server started on port ${config.port}`);
-      logger.info(`👉 Test Query: http://localhost:${config.port}/api/v1/products?price[gte]=100&sort=-price`);
+      logger.info(`Test Query: http://localhost:${config.port}/api/v1/products?price[gte]=100&sort=-price`);
     });
 
   } catch (err) {
