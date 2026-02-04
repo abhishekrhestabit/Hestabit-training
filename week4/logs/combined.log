@@ -1,0 +1,24 @@
+{"level":"info","message":"Email worker started and listening for jobs...","service":"week4-api","timestamp":"2026-02-03 17:42:47"}
+{"level":"info","message":"Database connected","service":"week4-api","timestamp":"2026-02-03 19:29:54"}
+{"level":"info","message":"Middlewares loaded","service":"week4-api","timestamp":"2026-02-03 19:29:54"}
+{"level":"info","message":"Routes mounted: 1 endpoints","service":"week4-api","timestamp":"2026-02-03 19:29:54"}
+{"level":"info","message":"Server started on port 3000","service":"week4-api","timestamp":"2026-02-03 19:29:54"}
+{"level":"info","message":"👉 Test URL: http://localhost:3000/api/v1/products","service":"week4-api","timestamp":"2026-02-03 19:29:54"}
+{"level":"info","message":{"duration":"229ms","ip":"::1","method":"GET","requestId":"f84238c9-d1be-4f06-8a47-fd5fee97c8e7","statusCode":500,"url":"/api/v1/products/6981aa9b5b72dcb7a6e4955e","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:30:04"}
+{"level":"info","message":{"duration":"187ms","ip":"::1","method":"GET","requestId":"85929286-6b8e-4291-ad78-37eddf2e09af","statusCode":500,"url":"/api/v1/products/6981aa9b5b72dcb7a6e4955e","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:33:41"}
+{"level":"info","message":"Database connected","service":"week4-api","timestamp":"2026-02-03 19:37:06"}
+{"level":"info","message":"Middlewares loaded","service":"week4-api","timestamp":"2026-02-03 19:37:06"}
+{"level":"info","message":"Routes mounted: 1 endpoints","service":"week4-api","timestamp":"2026-02-03 19:37:06"}
+{"level":"info","message":"Server started on port 3000","service":"week4-api","timestamp":"2026-02-03 19:37:06"}
+{"level":"info","message":"👉 Test URL: http://localhost:3000/api/v1/products","service":"week4-api","timestamp":"2026-02-03 19:37:06"}
+{"level":"info","message":{"duration":"458ms","ip":"::1","method":"GET","requestId":"59f1d63f-3251-464a-844c-5bbc3f67b4a7","statusCode":200,"url":"/api/v1/products/6981aa9b5b72dcb7a6e4955e","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:37:16"}
+{"level":"info","message":"Email worker started and listening for jobs...","service":"week4-api","timestamp":"2026-02-03 19:45:34"}
+{"level":"info","message":"Email worker started in development mode","service":"week4-api","timestamp":"2026-02-03 19:45:34"}
+{"level":"info","message":"Database connected","service":"week4-api","timestamp":"2026-02-03 19:45:37"}
+{"level":"info","message":"Middlewares loaded","service":"week4-api","timestamp":"2026-02-03 19:45:37"}
+{"level":"info","message":"Routes mounted: 1 endpoints","service":"week4-api","timestamp":"2026-02-03 19:45:37"}
+{"level":"info","message":"Server started on port 3000","service":"week4-api","timestamp":"2026-02-03 19:45:37"}
+{"level":"info","message":"👉 Test URL: http://localhost:3000/api/v1/products","service":"week4-api","timestamp":"2026-02-03 19:45:37"}
+{"level":"info","message":{"duration":"357ms","ip":"::1","method":"GET","requestId":"09027ad2-c1e9-4d44-b4e3-80cdcb50d347","statusCode":200,"url":"/api/v1/products/6981f8e95b72dcb7a6e49577","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:51:00"}
+{"level":"info","message":{"duration":"155ms","ip":"::1","method":"DELETE","requestId":"fefc7b1a-c4ba-48c1-a287-290316cf30af","statusCode":200,"url":"/api/v1/products/6981f8e95b72dcb7a6e49577","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:57:52"}
+{"level":"info","message":{"duration":"2808ms","ip":"::1","method":"PATCH","requestId":"4dde5611-3e08-4229-a0d4-0b4e614e8648","statusCode":200,"url":"/api/v1/products/6981aa9b5b72dcb7a6e4955e","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-04 11:10:33"}

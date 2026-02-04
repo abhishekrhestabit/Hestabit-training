@@ -3,6 +3,14 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const connectDB = require('./loaders/db');
 const loadApp = require('./loaders/app');
+const requestTracing = require('./middlewares/tracing');
+require('./models/Users');  // Register User model
+require('./models/Products'); // Register Product model
+
+if (process.env.NODE_ENV !== 'production') {
+  require('./workers/email.worker');
+  logger.info('Email worker started in development mode');
+}
 
 // --- DAY 3 & 4 IMPORTS ---
 const setupSecurity = require('./middlewares/security');
@@ -18,8 +26,7 @@ const AppError = require('./utils/AppError');
     // 2. Load the base Express App (from your loader)
     const app = await loadApp();
 
-    // --- INTEGRATE NEW FEATURES ---
-
+    app.use(requestTracing);
     // A. Apply Security Middleware (Day 4)
     // (Helmet, CORS, Rate Limit, Sanitization)
     setupSecurity(app);

@@ -8,9 +8,6 @@ const catchAsync = (fn) => {
   };
 };
 
-// ═══════════════════════════════════════════════════════════════
-// GET ALL PRODUCTS
-// ═══════════════════════════════════════════════════════════════
 exports.getAllProducts = catchAsync(async (req, res, next) => {
   const products = await productService.findAllProducts(req.query);
 
@@ -21,9 +18,7 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════
-// GET SINGLE PRODUCT
-// ═══════════════════════════════════════════════════════════════
+
 exports.getProduct = catchAsync(async (req, res, next) => {
   const product = await productService.findProductById(req.params.id);
 
@@ -37,22 +32,24 @@ exports.getProduct = catchAsync(async (req, res, next) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════
-// CREATE PRODUCT
-// ═══════════════════════════════════════════════════════════════
-exports.createProduct = catchAsync(async (req, res, next) => {
-  const product = await productService.createProduct(req.body);
 
-  res.status(201).json({
-    success: true,
-    message: 'Product created successfully',
-    data: product,
+exports.createProduct = async (productData) => {
+  const product = await Product.create(productData);
+  
+  // Add background job for email notification
+  await emailQueue.add('product-created', {
+    type: 'product-created',
+    data: {
+      productName: product.name,
+      productPrice: product.price,
+      productId: product._id,
+      createdBy: product.createdBy,
+    },
   });
-});
+  
+  return product;
+};
 
-// ═══════════════════════════════════════════════════════════════
-// DELETE PRODUCT (Soft Delete)
-// ═══════════════════════════════════════════════════════════════
 exports.deleteProduct = catchAsync(async (req, res, next) => {
   await productService.deleteProduct(req.params.id);
 
@@ -62,9 +59,6 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════
-// RESTORE PRODUCT
-// ═══════════════════════════════════════════════════════════════
 exports.restoreProduct = catchAsync(async (req, res, next) => {
   const product = await productService.restoreProduct(req.params.id);
 

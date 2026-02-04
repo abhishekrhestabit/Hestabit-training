@@ -1,6 +1,6 @@
 const Product = require('../models/Products');
 const AppError = require('../utils/AppError');
-
+const emailQueue = require('../queues/email.queue');
 /**
  * Advanced Query Engine Logic
  * Handles filtering, sorting, field limiting, pagination, and search.
