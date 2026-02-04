@@ -22,3 +22,11 @@
 {"level":"info","message":{"duration":"357ms","ip":"::1","method":"GET","requestId":"09027ad2-c1e9-4d44-b4e3-80cdcb50d347","statusCode":200,"url":"/api/v1/products/6981f8e95b72dcb7a6e49577","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:51:00"}
 {"level":"info","message":{"duration":"155ms","ip":"::1","method":"DELETE","requestId":"fefc7b1a-c4ba-48c1-a287-290316cf30af","statusCode":200,"url":"/api/v1/products/6981f8e95b72dcb7a6e49577","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-03 19:57:52"}
 {"level":"info","message":{"duration":"2808ms","ip":"::1","method":"PATCH","requestId":"4dde5611-3e08-4229-a0d4-0b4e614e8648","statusCode":200,"url":"/api/v1/products/6981aa9b5b72dcb7a6e4955e","userAgent":"PostmanRuntime/7.49.1"},"service":"week4-api","timestamp":"2026-02-04 11:10:33"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}
+{"error":"connect ECONNREFUSED 127.0.0.1:6379","level":"error","message":"Worker error","service":"week4-api","timestamp":"2026-02-04 16:23:54"}

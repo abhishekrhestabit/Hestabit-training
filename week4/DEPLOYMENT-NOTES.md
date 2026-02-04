@@ -19,9 +19,6 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 
 
-## Run Commands
-
-### Development Mode (Single Process)
 
 # Start Redis
 redis-server
@@ -30,7 +27,8 @@ redis-server
 npm start
 # or with auto-reload
 npm run dev
-
+# we do
+NODE_ENV=dev node src/index.js
 
 ## Endpoints
 
@@ -85,7 +83,7 @@ redis-cli
 
 # Check Redis is running
 redis-cli ping
-# Should return: PONG
+Should return: PONG
 
 # View all queue keys
 redis-cli KEYS "bull:*"
