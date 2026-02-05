@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: my-mongo
+    ports:
+      # Good choice! using 27018 avoids the "Address in use" conflict on your PC.
+      - "27018:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+  server:
+    build: ./server
+    container_name: my-node-server
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    environment:
+      # This is CORRECT. Internally, it still talks to port 27017 (not 27018).
+      - MONGO_URI=mongodb://mongo:27017/testdb
+
+  client:
+    build: ./client
+    container_name: my-react-client
+    ports:
+      - "5173:5173"
+    networks:
+      - app-network
+
+volumes:
+  mongo-data:
+
+networks:
+  app-network:
+    driver: bridge
