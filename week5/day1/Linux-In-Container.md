@@ -103,3 +103,4 @@ We then test the container terminal by runnning different commands.
 
 ![logs](images/logs.png)
 
+![dlogs](images/dlogs.png)
