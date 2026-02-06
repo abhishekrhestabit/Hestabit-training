@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    expose:
+      - "3000"
+    networks:
+      - secure-net
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8081:81"   # HTTP (for redirect)
+      - "443:443" # HTTPS (secure)
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # MOUNT THE CERTIFICATES HERE
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    networks:
+      - secure-net
+
+networks:
+  secure-net:
+    driver: bridge
