@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  --foreground-rgb: 226, 232, 240; /* Slate-200 (Soft White) */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  /* A subtle gradient from deep slate to slightly lighter slate */
+  background: radial-gradient(circle at top center, #1e293b, #0f172a);
+  min-height: 100vh;
+}
