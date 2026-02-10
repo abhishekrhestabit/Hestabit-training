@@ -14,10 +14,9 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API delay for that "real app" feel
     setTimeout(() => {
       setLoading(false);
-      router.push('/dashboard'); // Redirect to Dashboard
+      router.push('/dashboard'); 
     }, 1500);
   };
 
