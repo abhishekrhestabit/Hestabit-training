@@ -22,7 +22,7 @@ class DataPipeline:
             raise FileNotFoundError(f"File not found at {self.raw_path}")
         
         self.data = pd.read_csv(self.raw_path)
-        print(f"✅ Data loaded successfully. Shape: {self.data.shape}")
+        print(f" Data loaded successfully. Shape: {self.data.shape}")
         return self.data
 
     def clean_data(self):
@@ -43,9 +43,9 @@ class DataPipeline:
             
             if existing_cols_to_drop:
                 self.data.drop(columns=existing_cols_to_drop, inplace=True)
-                print(f"🗑️ Dropped columns: {existing_cols_to_drop}")
+                print(f" Dropped columns: {existing_cols_to_drop}")
             else:
-                print(f"⚠️ Warning: None of the columns in {self.drop_cols} were found in the dataset.")
+                print(f" Warning: None of the columns in {self.drop_cols} were found in the dataset.")
 
         # 3. Handle Missing Values
         numeric_cols = self.data.select_dtypes(include=[np.number]).columns
@@ -60,7 +60,7 @@ class DataPipeline:
             if not self.data[col].mode().empty:
                 self.data[col] = self.data[col].fillna(self.data[col].mode()[0])
 
-        print(f"✅ Data cleaned. Final Shape: {self.data.shape}")
+        print(f" Data cleaned. Final Shape: {self.data.shape}")
         return self.data
 
     def save_data(self):
@@ -73,7 +73,7 @@ class DataPipeline:
         os.makedirs(os.path.dirname(self.processed_path), exist_ok=True)
         
         self.data.to_csv(self.processed_path, index=False)
-        print(f"💾 Processed data saved to {self.processed_path}")
+        print(f" Processed data saved to {self.processed_path}")
 
 if __name__ == "__main__":
     # CONFIGURATION
