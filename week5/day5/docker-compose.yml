@@ -7,9 +7,15 @@ services:
     container_name: hesta_mongo
     restart: always
     volumes:
-      - mongo_data:/data/db  # Persist data here
+      - mongo_data:/data/db
     networks:
       - hesta-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   # 2. Backend Service
   backend:
@@ -18,12 +24,18 @@ services:
     restart: always
     environment:
       - PORT=5000
-      # Connect to 'mongo' service, not localhost
       - MONGO_URI=mongodb://mongo:27017/hestatrack
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy 
     networks:
       - hesta-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/api/goals"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   # 3. Frontend Service
   frontend:
@@ -31,35 +43,46 @@ services:
     container_name: hesta_frontend
     restart: always
     environment:
-      # Next.js needs to know where the API is (client-side)
       - NEXT_PUBLIC_API_URL=https://localhost/api
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy 
     networks:
       - hesta-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
-  # 4. Reverse Proxy (The Entry Point)
+  # 4. Reverse Proxy
   nginx:
     image: nginx:alpine
     container_name: hesta_nginx
     restart: always
     ports:
-      - "8082:80"   # HTTP
-      - "443:443" # HTTPS
+      - "8082:80"   # HTTP (Changed as per your config)
+      - "443:443"   # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro # Make sure certs exist here!
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     networks:
       - hesta-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-# Define the persistent volume
 volumes:
   mongo_data:
 
-# Define the internal network
 networks:
   hesta-net:
     driver: bridge

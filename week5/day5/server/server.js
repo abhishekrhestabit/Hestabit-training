@@ -12,6 +12,11 @@ connectDB();
 // 3. Initialize Express App
 const app = setupApp();
 
+// Health checks
+// Simple Health Check Endpoint
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 // 4. Mount the Logic (Routes)
 // All routes in main.js will be prefixed with /api/goals
 app.use('/api/goals', goalRoutes);
