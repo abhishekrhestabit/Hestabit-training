@@ -7,7 +7,7 @@ In Day 1 we mainly focused on how we read data, how we process data by setting u
 The raw form of a data is provided in the form of a csv file. The data is devided into Rows and columns . The column tell's us what the data is, and row tell's us who that data is about. In every data, there is a unique identifier. that tells us  who that data is about. But when we perform ml algorithms for prediction, we don't usually need these unique identifiers, we usually need them when we want to remove the duplicate values. After that we can either keep them or remove them, mostly, we keep them and then work with the columns we need to work with when doing predictions. 
 
 
-## 3. Data Cleaning Log
+## Data Cleaning Log
 The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 
 ### Dropped Columns
@@ -23,7 +23,7 @@ The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 
 ---
 
-## 4. EDA Insights (Exploratory Data Analysis)
+## EDA Insights (Exploratory Data Analysis)
 
 ### Target Distribution (`Survived`)
 - **Class Balance:**
@@ -44,7 +44,7 @@ The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 
 ---
 
-## 5. Visual Proofs
+## Visual Proofs
 Refer to `notebooks/EDA.ipynb` for full charts
 
 - Missing Values Heatmap: Verified "Before" (messy) vs "After" (clean).
