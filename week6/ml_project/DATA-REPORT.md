@@ -36,8 +36,7 @@ The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 ### Correlation Analysis
 * **Strongest Positive Correlation:** `[Parch]` vs `[SibSp]` (Correlation: `0.41`).
 * **Strongest Negative Correlation:** `[Pclass]` vs `[Fare]` (Correlation: `-0.55`).
-* **Multicollinearity Check:** No two features had a correlation > 0.9.
-
+![alt text](Day1/corr.png)
 ### Feature Distributions
 * **Numerical:** `Age` follows a roughly normal distribution. `Fare` is highly right-skewed .
 * **Categorical:** `Sex` has two unique values. `Embarked` has three.
