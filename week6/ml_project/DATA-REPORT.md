@@ -25,7 +25,7 @@ The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 
 ## 4. EDA Insights (Exploratory Data Analysis)
 
-### Target Distribution (`Survived` / `Churn`)
+### Target Distribution (`Survived`)
 - **Class Balance:**
     * Class 0 (No)
     * Class 1 (Yes)
