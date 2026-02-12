@@ -1,0 +1,11 @@
+{
+    "selected_features": [
+        "Pclass",
+        "Age",
+        "SibSp",
+        "Parch",
+        "FamilySize",
+        "Fare_Log",
+        "Sex_male"
+    ]
+}

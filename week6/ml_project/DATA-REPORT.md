@@ -40,9 +40,9 @@ The following automated steps were executed by `src/pipelines/data_pipeline.py`:
 ### Feature Distributions
 * **Numerical:** `Age` follows a roughly normal distribution. `Fare` is highly right-skewed .
 * **Categorical:** `Sex` has two unique values. `Embarked` has three.
+![alt text](Day1/fet.png)
 
 ---
-
 ## Visual Proofs
 Refer to `notebooks/EDA.ipynb` for full charts
 
