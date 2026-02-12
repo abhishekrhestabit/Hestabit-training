@@ -77,8 +77,8 @@ class DataPipeline:
 
 if __name__ == "__main__":
     # CONFIGURATION
-    RAW_FILE = "data/raw/dataset.csv" 
-    PROCESSED_FILE = "data/processed/final.csv"
+    RAW_FILE = "src/data/raw/dataset.csv" 
+    PROCESSED_FILE = "src/data/processed/final.csv"
     
     # --- HERE IS WHERE YOU DEFINE THE SPECIFICS ---
     # Since we are using Titanic right now, we pass the Titanic specific cols here.
