@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 class FeatureEngineer:
     def __init__(self, input_path, output_dir):
@@ -11,89 +11,98 @@ class FeatureEngineer:
         self.df = None
 
     def load_data(self):
-        # Load the clean data from Day 1
         self.df = pd.read_csv(self.input_path)
         print(f"✅ Loaded Data. Shape: {self.df.shape}")
 
     def create_features(self):
         """
-        Create domain-specific features.
+        Generates 20+ features using Interactions and Polynomials.
         """
-        # 1. FamilySize: Combine Siblings + Parents + Self
-        if 'SibSp' in self.df.columns and 'Parch' in self.df.columns:
-            self.df['FamilySize'] = self.df['SibSp'] + self.df['Parch'] + 1
-            
-        # 2. IsAlone: Binary flag (1 if alone, 0 if with family)
-        if 'FamilySize' in self.df.columns:
-            self.df['IsAlone'] = (self.df['FamilySize'] == 1).astype(int)
+        # --- 1. Basic Family Features ---
+        self.df['FamilySize'] = self.df['SibSp'] + self.df['Parch'] + 1
+        self.df['IsAlone'] = (self.df['FamilySize'] == 1).astype(int)
+        self.df['Is_Large_Family'] = (self.df['FamilySize'] > 4).astype(int)
 
-        # 3. Log Transform Fare: Fix skewness (handle log(0) by adding +1)
-        if 'Fare' in self.df.columns:
-            self.df['Fare_Log'] = np.log1p(self.df['Fare']) 
-            # Drop original skewed column to avoid multicollinearity
-            self.df.drop(columns=['Fare'], inplace=True) 
+        # --- 2. Fare Transformations ---
+        self.df['Fare_Log'] = np.log1p(self.df['Fare'])
+        self.df['Fare_Per_Person'] = self.df['Fare'] / self.df['FamilySize']
 
-        print("✅ New Features Created: FamilySize, IsAlone, Fare_Log")
+        # --- 3. Age Transformations ---
+        self.df['Is_Child'] = (self.df['Age'] < 10).astype(int)
+        self.df['Is_Senior'] = (self.df['Age'] > 60).astype(int)
+        
+        # --- 4. Interactions ---
+        self.df['Age_Class'] = self.df['Age'] * self.df['Pclass']
+        self.df['Age_Fare'] = self.df['Age'] * self.df['Fare_Log']
+
+        # --- 5. Polynomials ---
+        self.df['Age_Sq'] = self.df['Age'] ** 2
+        self.df['Fare_Sq'] = self.df['Fare_Log'] ** 2
+        
+        print("✅ Feature Engineering Complete.")
         return self.df
 
     def encode_and_scale(self):
         """
-        1. One-Hot Encode Categorical Vars
-        2. Scale Numerical Vars
+        Uses sklearn OneHotEncoder instead of pd.get_dummies.
         """
-        # --- A. Encoding (Categorical -> Numbers) ---
-        # Get all categorical columns automatically
-        cat_cols = self.df.select_dtypes(include=['object']).columns
+        # 1. Identify Categorical & Numerical Columns
+        # We explicitly cast Pclass to string so it gets encoded as a category
+        self.df['Pclass'] = self.df['Pclass'].astype(str)
         
-        # One-Hot Encoding (drop_first=True avoids dummy variable trap)
-        self.df = pd.get_dummies(self.df, columns=cat_cols, drop_first=True)
-        
-        # Force Booleans (True/False) to 1/0
-        bool_cols = self.df.select_dtypes(include=['bool']).columns
-        self.df[bool_cols] = self.df[bool_cols].astype(int)
+        cat_cols = ['Sex', 'Embarked', 'Pclass']
+        num_cols = [c for c in self.df.columns if c not in cat_cols and c != 'Survived']
 
-        # --- B. Scaling (Numbers -> Z-Scores) ---
-        # Identify columns to scale (all remaining numeric columns except target)
-        target = 'Survived' 
-        features_to_scale = [c for c in self.df.columns if c != target]
+        # --- 2. ONE-HOT ENCODING (The Sklearn Way) ---
+        # sparse_output=False gives us a dense array (easier to use)
+        # handle_unknown='ignore' prevents crashes if new data has unknown categories
+        encoder = OneHotEncoder(sparse_output=False, drop='first', handle_unknown='ignore')
         
-        # NOTE: In production, we fit scaler on TRAIN and transform TEST.
-        # For this specific script, we apply it globally for simplicity before splitting.
-        # (Day 3 will cover pipelines which is the "Strict" way).
+        # Fit and Transform
+        encoded_data = encoder.fit_transform(self.df[cat_cols])
+        
+        # Get the new column names (e.g., Sex_male, Embarked_Q)
+        encoded_cols = encoder.get_feature_names_out(cat_cols)
+        
+        # Convert back to DataFrame
+        encoded_df = pd.DataFrame(encoded_data, columns=encoded_cols, index=self.df.index)
+        
+        # --- 3. MERGE & CLEANUP ---
+        # Drop old categorical columns and attach new one-hot columns
+        self.df = self.df.drop(columns=cat_cols)
+        self.df = pd.concat([self.df, encoded_df], axis=1)
+
+        # --- 4. SCALING ---
         scaler = StandardScaler()
+        # Scale only the numerical features (excluding the new binary one-hot cols if you prefer, 
+        # but scaling everything is standard for SVM/Linear models)
+        features_to_scale = num_cols + list(encoded_cols)
+        
         self.df[features_to_scale] = scaler.fit_transform(self.df[features_to_scale])
 
-        print(f"✅ Data Encoded & Scaled. New Shape: {self.df.shape}")
+        print(f"✅ Data Encoded (Sklearn) & Scaled. New Feature Count: {self.df.shape[1] - 1}")
         return self.df
 
     def save_split_data(self):
-        """
-        Save X_train, X_test, y_train, y_test
-        """
         target = 'Survived'
-        
-        # Separate Features (X) and Target (y)
         X = self.df.drop(columns=[target])
         y = self.df[target]
 
-        # Split 80/20
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
 
-        # Save to disk
         os.makedirs(self.output_dir, exist_ok=True)
         X_train.to_csv(f"{self.output_dir}/X_train.csv", index=False)
         X_test.to_csv(f"{self.output_dir}/X_test.csv", index=False)
         y_train.to_csv(f"{self.output_dir}/y_train.csv", index=False)
         y_test.to_csv(f"{self.output_dir}/y_test.csv", index=False)
-
-        print(f"💾 Files saved to {self.output_dir}")
+        print(f"💾 Saved X_train with {X_train.shape[1]} columns.")
 
 if __name__ == "__main__":
-   
     INPUT_FILE = "src/data/processed/final.csv"
-    OUTPUT_DIR = "src/data/processed" 
+    OUTPUT_DIR = "src/data/features"
+
     engineer = FeatureEngineer(INPUT_FILE, OUTPUT_DIR)
     engineer.load_data()
     engineer.create_features()
