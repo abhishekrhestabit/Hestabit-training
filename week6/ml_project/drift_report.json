@@ -1,0 +1,26 @@
+{
+    "Age": {
+        "p_value": 0.0,
+        "drift_detected": true,
+        "train_mean": 29.36,
+        "prod_mean": 19.81,
+        "train_std": 13.02,
+        "prod_std": 10.32
+    },
+    "Fare": {
+        "p_value": 0.0003,
+        "drift_detected": true,
+        "train_mean": 32.2,
+        "prod_mean": 397.95,
+        "train_std": 49.69,
+        "prod_std": 482.82
+    },
+    "Pclass": {
+        "p_value": 0.2081,
+        "drift_detected": false,
+        "train_mean": 2.31,
+        "prod_mean": 1.94,
+        "train_std": 0.84,
+        "prod_std": 1.0
+    }
+}

@@ -1,13 +1,15 @@
 import pandas as pd
 import numpy as np
 import os
+import joblib  # <--- NEW: Required for saving artifacts
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 class FeatureEngineer:
-    def __init__(self, input_path, output_dir):
+    def __init__(self, input_path, output_dir, model_dir="src/models"):
         self.input_path = input_path
         self.output_dir = output_dir
+        self.model_dir = model_dir  # <--- NEW: Where to save scaler/encoder
         self.df = None
 
     def load_data(self):
@@ -24,6 +26,7 @@ class FeatureEngineer:
         self.df['Is_Large_Family'] = (self.df['FamilySize'] > 4).astype(int)
 
         # --- 2. Fare Transformations ---
+        # log1p handles Fare=0 gracefully
         self.df['Fare_Log'] = np.log1p(self.df['Fare'])
         self.df['Fare_Per_Person'] = self.df['Fare'] / self.df['FamilySize']
 
@@ -44,43 +47,58 @@ class FeatureEngineer:
 
     def encode_and_scale(self):
         """
-        Uses sklearn OneHotEncoder instead of pd.get_dummies.
+        Encodes categoricals and Scales numericals.
+        SAVES the fitted Encoder and Scaler for deployment.
         """
+        # Ensure model directory exists
+        os.makedirs(self.model_dir, exist_ok=True)
+
         # 1. Identify Categorical & Numerical Columns
-        # We explicitly cast Pclass to string so it gets encoded as a category
+        # Force Pclass to be string so it is treated as a category
         self.df['Pclass'] = self.df['Pclass'].astype(str)
         
+        # Define strict lists
         cat_cols = ['Sex', 'Embarked', 'Pclass']
+        
+        # Get all other columns that are not 'Survived' and not in cat_cols
+        # This ensures we capture all the new features we just created
         num_cols = [c for c in self.df.columns if c not in cat_cols and c != 'Survived']
 
-        # --- 2. ONE-HOT ENCODING (The Sklearn Way) ---
-        # sparse_output=False gives us a dense array (easier to use)
-        # handle_unknown='ignore' prevents crashes if new data has unknown categories
+        # --- 2. ONE-HOT ENCODING ---
+        print("⚙️  Fitting OneHotEncoder...")
         encoder = OneHotEncoder(sparse_output=False, drop='first', handle_unknown='ignore')
         
-        # Fit and Transform
+        # Fit on the categorical columns
         encoded_data = encoder.fit_transform(self.df[cat_cols])
         
-        # Get the new column names (e.g., Sex_male, Embarked_Q)
-        encoded_cols = encoder.get_feature_names_out(cat_cols)
+        # Save the Encoder!
+        joblib.dump(encoder, os.path.join(self.model_dir, 'encoder.pkl'))
         
-        # Convert back to DataFrame
+        # Create DataFrame from encoded data
+        encoded_cols = encoder.get_feature_names_out(cat_cols)
         encoded_df = pd.DataFrame(encoded_data, columns=encoded_cols, index=self.df.index)
         
-        # --- 3. MERGE & CLEANUP ---
-        # Drop old categorical columns and attach new one-hot columns
+        # Merge: Drop old cats, add new encoded
         self.df = self.df.drop(columns=cat_cols)
         self.df = pd.concat([self.df, encoded_df], axis=1)
 
-        # --- 4. SCALING ---
+        # --- 3. SCALING ---
+        print("⚙️  Fitting StandardScaler...")
         scaler = StandardScaler()
-        # Scale only the numerical features (excluding the new binary one-hot cols if you prefer, 
-        # but scaling everything is standard for SVM/Linear models)
+        
+        # We need to scale the original numerical cols PLUS the new encoded cols
         features_to_scale = num_cols + list(encoded_cols)
         
+        # Fit and Transform
         self.df[features_to_scale] = scaler.fit_transform(self.df[features_to_scale])
+        
+        # Save the Scaler!
+        joblib.dump(scaler, os.path.join(self.model_dir, 'scaler.pkl'))
+        
+        # ALSO Save the list of feature names (Crucial for API alignment)
+        joblib.dump(features_to_scale, os.path.join(self.model_dir, 'features_list.pkl'))
 
-        print(f"✅ Data Encoded (Sklearn) & Scaled. New Feature Count: {self.df.shape[1] - 1}")
+        print(f"✅ Data Encoded & Scaled. Artifacts saved to {self.model_dir}/")
         return self.df
 
     def save_split_data(self):
@@ -88,6 +106,7 @@ class FeatureEngineer:
         X = self.df.drop(columns=[target])
         y = self.df[target]
 
+        # Use stratify to ensure fair split of survivors
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
@@ -97,7 +116,7 @@ class FeatureEngineer:
         X_test.to_csv(f"{self.output_dir}/X_test.csv", index=False)
         y_train.to_csv(f"{self.output_dir}/y_train.csv", index=False)
         y_test.to_csv(f"{self.output_dir}/y_test.csv", index=False)
-        print(f"💾 Saved X_train with {X_train.shape[1]} columns.")
+        print(f"💾 Saved splits to {self.output_dir}/")
 
 if __name__ == "__main__":
     INPUT_FILE = "src/data/processed/final.csv"
