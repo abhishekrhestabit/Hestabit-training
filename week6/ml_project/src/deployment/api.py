@@ -24,8 +24,8 @@ try:
     pipeline = joblib.load('src/models/pipeline.pkl')
     
     # Use best_model.pkl (Original RandomForest - 83.29% accuracy)
-    model = joblib.load('src/models/best_model.pkl')
-    print("✅ Loaded best_model.pkl (RandomForest - Acc: 83.29%, ROC: 0.8745)")
+    model = joblib.load('src/models/best_tuned_model.pkl')
+    print("✅ Loaded best_tuned_model.pkl (RandomForest - Acc: 83.29%, ROC: 0.8745)")
     print(f"✅ Model expects 11 features - Pipeline outputs: {pipeline.transform(pd.DataFrame([{'Pclass': 3, 'Sex': 'male', 'Age': 22, 'SibSp': 1, 'Parch': 0, 'Fare': 7.25, 'Embarked': 'S'}])).shape[1]} features")
     
     print("✅ Pipeline and Model Ready.")

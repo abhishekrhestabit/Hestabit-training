@@ -1,56 +1,69 @@
 import optuna
-import xgboost as xgb
 import pandas as pd
 import json
 import os
 import joblib  # Standard tool for saving models
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
 # 1. Load Data
 # We tune on X_train. We keep X_test for the final evaluation later.
-X = pd.read_csv('src/data/features/X_train.csv')
-y = pd.read_csv('src/data/features/y_train.csv').values.ravel()
-
-print(f"✅ Loaded training data: {X.shape}")
-
-# Apply Feature Selection
 try:
-    with open('src/data/features/feature_list.json', 'r') as f:
-        selected_features = json.load(f)['selected_features']
-        X = X[selected_features]
-        print(f"✅ Filtered to top {len(selected_features)} features.")
+    X = pd.read_csv('src/data/features/X_train.csv')
+    y = pd.read_csv('src/data/features/y_train.csv').values.ravel()
+    print(f"✅ Loaded training data: {X.shape}")
 except FileNotFoundError:
-    print("⚠️ No feature list found. Using all columns.")
+    print("❌ Data not found! Run src/features/build_features.py first.")
+    exit()
+
+# Apply Feature Selection (Filter to the Chosen 11 or similar)
+try:
+    feature_list_path = 'src/data/features/feature_list.json'
+    if os.path.exists(feature_list_path):
+        with open(feature_list_path, 'r') as f:
+            data = json.load(f)
+            # Handle both list format and dict format just in case
+            selected_features = data['selected_features'] if isinstance(data, dict) else data
+            
+        # Ensure we only keep columns that actually exist in X
+        valid_features = [f for f in selected_features if f in X.columns]
+        X = X[valid_features]
+        print(f"✅ Filtered to top {len(valid_features)} features.")
+    else:
+        print("⚠️ No feature list found. Using all columns.")
+except Exception as e:
+    print(f"⚠️ Warning loading features: {e}. Using all columns.")
 
 # 2. Define Objective Function (The Experiment)
 def objective(trial):
+    # Random Forest Hyperparameters
     param = {
-        'verbosity': 0,
-        'objective': 'binary:logistic',
-        'eval_metric': 'auc',
-        'booster': 'gbtree',
-        # Optimization Space
-        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
-        'max_depth': trial.suggest_int('max_depth', 3, 10),
-        'lambda': trial.suggest_float('lambda', 1e-8, 1.0, log=True),
-        'alpha': trial.suggest_float('alpha', 1e-8, 1.0, log=True),
-        'subsample': trial.suggest_float('subsample', 0.6, 1.0),
-        'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
-        'n_estimators': 100
+        'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+        'max_depth': trial.suggest_int('max_depth', 3, 20),
+        'min_samples_split': trial.suggest_int('min_samples_split', 2, 15),
+        'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+        'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None]),
+        'bootstrap': trial.suggest_categorical('bootstrap', [True, False]),
+        'criterion': trial.suggest_categorical('criterion', ['gini', 'entropy']),
+        'random_state': 42,
+        'n_jobs': -1  # Use all CPU cores
     }
 
-    model = xgb.XGBClassifier(**param)
+    model = RandomForestClassifier(**param)
     
     # Stratified K-Fold CV (Robust Testing)
+    # We use 5 folds to be sure the score is stable
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    
+    # We optimize for ROC-AUC (Area Under Curve)
     scores = cross_val_score(model, X, y, cv=cv, scoring='roc_auc')
     
     return scores.mean()
 
 # 3. Run Optimization
-print("🚀 Starting Optuna with 5-Fold CV & ROC-AUC...")
+print("🚀 Starting Optuna with Random Forest (5-Fold CV)...")
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=50)
+study.optimize(objective, n_trials=30)  # 30 trials is usually enough for RF
 
 print(f"\n✅ Optimization Complete!")
 print(f"Best ROC-AUC: {study.best_value:.4f}")
@@ -63,22 +76,22 @@ with open('src/tuning/results.json', 'w') as f:
 
 print("✅ Best parameters saved to src/tuning/results.json")
 
-
+# 5. Retrain Final Model
 print("\n🔄 Retraining final model with best parameters...")
 
-# Initialize model with the best params found by Optuna
 best_params = study.best_params
-best_params['n_estimators'] = 100  # Ensure we keep this consistent
-best_params['objective'] = 'binary:logistic'
+# Add fixed params back in
+best_params['random_state'] = 42
+best_params['n_jobs'] = -1
 
-final_model = xgb.XGBClassifier(**best_params)
+final_model = RandomForestClassifier(**best_params)
 
-# Fit on the FULL training data
+# Fit on the FULL training data (X_train)
 final_model.fit(X, y)
 
 # Save to .pkl
 os.makedirs('src/models', exist_ok=True)
-model_path = 'src/models/best_tuned_model.pkl'
+model_path = 'src/models/best_tuned_model.pkl'  # Overwrite best_model.pkl so API uses it
 joblib.dump(final_model, model_path)
 
 print(f"💾 Final model saved to {model_path}")
