@@ -53,7 +53,7 @@ Ensure the model and preprocessors are built and saved in `src/models/`:
 
 ```bash
 python src/features/build_features.py
-# Then train your model (if not already done)
+# Then train our model (if not already done)
 
 ```
 
