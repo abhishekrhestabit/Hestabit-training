@@ -18,7 +18,7 @@ class TitanicFeatureCreator(BaseEstimator, TransformerMixin):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # Defaults for missing data
+        # Defaults
         df['Fare'] = df['Fare'].fillna(14.45)
         df['Age'] = df['Age'].fillna(28.0)
         df['SibSp'] = df['SibSp'].fillna(0)
@@ -39,9 +39,18 @@ class TitanicFeatureCreator(BaseEstimator, TransformerMixin):
         df['Age_Sq'] = df['Age'] ** 2
         df['Fare_Sq'] = df['Fare_Log'] ** 2
         
-        # Binary encodings for best_model.pkl compatibility
-        # Create Sex_male and Pclass_3 as binary features
+        # --- MANUAL ONE-HOT ENCODING (Safe & Complete) ---
+        # 1. Sex
         df['Sex_male'] = (df['Sex'] == 'male').astype(int)
+        
+        # 2. Pclass (Create all 3 so selector can choose)
+        df['Pclass_1'] = (df['Pclass'] == 1).astype(int)
+        df['Pclass_2'] = (df['Pclass'] == 2).astype(int)
         df['Pclass_3'] = (df['Pclass'] == 3).astype(int)
+        
+        # 3. Embarked (Create all 3)
+        df['Embarked_C'] = (df['Embarked'] == 'C').astype(int)
+        df['Embarked_Q'] = (df['Embarked'] == 'Q').astype(int)
+        df['Embarked_S'] = (df['Embarked'] == 'S').astype(int)
         
         return df
