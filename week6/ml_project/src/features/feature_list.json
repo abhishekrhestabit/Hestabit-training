@@ -1,11 +1,15 @@
 {
     "selected_features": [
-        "Pclass",
         "Age",
-        "SibSp",
-        "Parch",
+        "Fare",
         "FamilySize",
         "Fare_Log",
-        "Sex_male"
+        "Fare_Per_Person",
+        "Age_Class",
+        "Age_Fare",
+        "Age_Sq",
+        "Fare_Sq",
+        "Sex_male",
+        "Pclass_3"
     ]
 }

@@ -64,6 +64,5 @@ if __name__ == "__main__":
     selector.load_data()
     # Explicitly asking for 11 features
     best_features, rfe_model = selector.select_features(n_features=11)
-    
     selector.save_results(best_features)
     selector.plot_importance(rfe_model)

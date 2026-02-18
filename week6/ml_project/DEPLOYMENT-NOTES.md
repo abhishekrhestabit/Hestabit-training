@@ -1,5 +1,4 @@
 
-```markdown
 # Titanic Survival API - Deployment & Operations Manual
 
 ## 1. System Overview

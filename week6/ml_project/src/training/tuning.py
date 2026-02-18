@@ -13,6 +13,15 @@ y = pd.read_csv('src/data/features/y_train.csv').values.ravel()
 
 print(f"✅ Loaded training data: {X.shape}")
 
+# Apply Feature Selection
+try:
+    with open('src/data/features/feature_list.json', 'r') as f:
+        selected_features = json.load(f)['selected_features']
+        X = X[selected_features]
+        print(f"✅ Filtered to top {len(selected_features)} features.")
+except FileNotFoundError:
+    print("⚠️ No feature list found. Using all columns.")
+
 # 2. Define Objective Function (The Experiment)
 def objective(trial):
     param = {
