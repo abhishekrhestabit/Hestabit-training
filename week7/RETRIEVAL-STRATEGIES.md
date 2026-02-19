@@ -62,6 +62,7 @@ The full Day 2 pipeline in order is:
 - Cross-encoder reranking rescores the remaining candidates and returns the top-n.
 - The context builder formats the final chunks with source annotations for the LLM.
 
+![alt text](Day2/output.png)
 ---
 
 ## Key Principles
