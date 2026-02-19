@@ -34,6 +34,7 @@ Retrieval-Augmented Generation (RAG) is an architecture that improves the qualit
 - It returns the top-k most relevant chunks along with a similarity score. A lower score means higher similarity (L2 distance).
 - Each result includes the source file, page number, file type, and the chunk content — giving full traceability.
 
+![alt text](Day1/Query.png)
 ---
 
 ## Key Principles
