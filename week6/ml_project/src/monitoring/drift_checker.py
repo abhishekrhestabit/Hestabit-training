@@ -11,14 +11,14 @@ class DriftChecker:
         self.report_path = report_path
         
     def check_drift(self):
-        print("🕵️‍♂️ Checking for Data Drift...")
+        print("Checking for Data Drift...")
         
         # 1. Load Data
         try:
             # Reference Data (Baseline)
             # We must load the RAW data to compare with RAW logs
             if not os.path.exists(self.train_path):
-                print(f"❌ Training data not found at {self.train_path}")
+                print(f"Training data not found at {self.train_path}")
                 print("   Please update TRAIN_DATA in the script to point to your original 'train.csv'.")
                 return
 
@@ -26,7 +26,7 @@ class DriftChecker:
             
             # Current Data (Production Logs)
             if not os.path.exists(self.log_path):
-                print("⚠️ No prediction logs found yet. Skipping check.")
+                print("No prediction logs found yet. Skipping check.")
                 return
             
             log_df = pd.read_csv(self.log_path)
@@ -35,11 +35,11 @@ class DriftChecker:
             log_df = log_df.dropna(subset=['age', 'fare'])
             
             if len(log_df) < 10:
-                print(f"⚠️ Not enough log data (Found {len(log_df)} samples, need > 10).")
+                print(f"Not enough log data (Found {len(log_df)} samples, need > 10).")
                 return
                 
         except Exception as e:
-            print(f"❌ Error loading data: {e}")
+            print(f"Error loading data: {e}")
             return
 
         # 2. Define features to monitor
@@ -61,10 +61,10 @@ class DriftChecker:
             
             # Check if columns exist
             if train_col not in train_df.columns:
-                print(f"⚠️ Column '{train_col}' missing in Training Data. Skipping.")
+                print(f"Column '{train_col}' missing in Training Data. Skipping.")
                 continue
             if log_col not in log_df.columns:
-                print(f"⚠️ Column '{log_col}' missing in Logs. Skipping.")
+                print(f"Column '{log_col}' missing in Logs. Skipping.")
                 continue
                 
             # Get the two distributions (Cleaned)
@@ -88,16 +88,16 @@ class DriftChecker:
             
             if is_drift:
                 drift_detected = True
-                print(f"🚨 DRIFT DETECTED in {train_col}! (p={p_value:.4f})")
+                print(f"DRIFT DETECTED in {train_col}! (p={p_value:.4f})")
                 print(f"   Train Mean: {train_dist.mean():.2f} vs Prod Mean: {log_dist.mean():.2f}")
             else:
-                print(f"✅ {train_col} is stable. (p={p_value:.4f})")
+                print(f"{train_col} is stable. (p={p_value:.4f})")
 
         # 4. Save Report
         with open(self.report_path, "w") as f:
             json.dump(drift_report, f, indent=4)
         
-        print(f"📄 Drift report saved to {self.report_path}")
+        print(f"Drift report saved to {self.report_path}")
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
