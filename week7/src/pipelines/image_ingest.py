@@ -3,6 +3,7 @@ import sys
 import pickle
 import numpy as np
 import faiss
+import torch
 import pytesseract
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
@@ -60,11 +61,20 @@ class ImageIngestionPipeline:
             ocr_text = self.extract_ocr(raw_image)
             caption = self.generate_caption(raw_image)
             
-            # 2. Generate Vector
-            vector = self.embedder.embed_image(filepath)
-            
-            # 3. Store in FAISS and Metadata Dict
-            self.index.add(np.array([vector], dtype=np.float32))
+            # 2. Early Fusion: Embed image + caption independently, then fuse
+            image_vector = np.array(self.embedder.embed_image(filepath), dtype=np.float32)
+            caption_vector = np.array(self.embedder.embed_text(caption), dtype=np.float32)
+
+            # Weighted average fusion: 60% semantic (caption) + 40% visual (image)
+            fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
+
+            # L2 Normalize so inner-product == cosine similarity in FAISS
+            norm = np.linalg.norm(fused_vector)
+            if norm > 0:
+                fused_vector = fused_vector / norm
+
+            # 3. Store fused 512D vector in FAISS and Metadata Dict
+            self.index.add(np.array([fused_vector], dtype=np.float32))
             self.metadata_store[idx] = {
                 "filepath": filepath,
                 "filename": filename,
@@ -80,6 +90,5 @@ class ImageIngestionPipeline:
         print("✅ Multimodal DB successfully saved.")
 
 if __name__ == "__main__":
-    import torch # imported here for device check inside pipeline
     pipeline = ImageIngestionPipeline()
     pipeline.process_images()
