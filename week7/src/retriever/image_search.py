@@ -58,7 +58,7 @@ class ImageSearchEngine:
         Embeds the query text with CLIP, L2-normalizes it, and performs a
         direct inner-product search against the fused index.
         """
-        print(f"\n🔎 Searching fused index for text query: '{text_query}'...")
+        print(f"\n Searching fused index for text query: '{text_query}'...")
 
         # Embed text with CLIP and L2 normalize
         query_vector = np.array(self.clip_embedder.embed_text(text_query), dtype=np.float32)
@@ -85,11 +85,11 @@ class ImageSearchEngine:
         caption and the image with CLIP, applies the same 60/40 fusion and
         L2 normalization used at ingest time, then searches the fused index.
         """
-        print(f"\n🔎 Processing query image: '{os.path.basename(image_path)}'")
+        print(f"\n Processing query image: '{os.path.basename(image_path)}'")
 
         # 1. Generate live caption
         query_caption = self._extract_live_caption(image_path)
-        print(f"💬 Live Caption Generated: '{query_caption}'")
+        print(f" Live Caption Generated: '{query_caption}'")
 
         # 2. Embed caption and raw image independently with CLIP
         caption_vector = np.array(self.clip_embedder.embed_text(query_caption), dtype=np.float32)

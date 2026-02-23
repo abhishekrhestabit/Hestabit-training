@@ -40,12 +40,12 @@ class ImageIngestionPipeline:
         Returns the list of saved PNG paths so they feed into the main loop.
         """
         pdf_stem = os.path.splitext(os.path.basename(pdf_path))[0]
-        print(f"  📄 Converting PDF → images: {os.path.basename(pdf_path)}")
+        print(f"  Converting PDF → images: {os.path.basename(pdf_path)}")
 
         try:
             pages = convert_from_path(pdf_path, dpi=200)
         except Exception as e:
-            print(f"  ⚠️  Could not convert {pdf_path}: {e}")
+            print(f"  Could not convert {pdf_path}: {e}")
             return []
 
         saved_paths = []
@@ -86,7 +86,7 @@ class ImageIngestionPipeline:
 
     def process_images(self):
         
-        print("\n📂 Stage 0: Scanning for PDFs and converting to images...")
+        print("\n Stage 0: Scanning for PDFs and converting to images...")
         self._collect_and_convert()
 
     
@@ -99,7 +99,7 @@ class ImageIngestionPipeline:
             print("No supported image files found in data/images/ or data/raw/")
             return
 
-        print(f"\n🖼️  Stage 1: Embedding {len(image_files)} image(s)...")
+        print(f"\n Stage 1: Embedding {len(image_files)} image(s)...")
 
         for idx, filename in enumerate(image_files):
             filepath = os.path.join(IMAGE_DIR, filename)
@@ -108,7 +108,7 @@ class ImageIngestionPipeline:
             try:
                 raw_image = Image.open(filepath).convert("RGB")
             except Exception as e:
-                print(f"  ⚠️  Could not open {filename}: {e} — skipping.")
+                print(f"  Could not open {filename}: {e} — skipping.")
                 continue
 
             # 1. Generate Metadata (OCR + Caption)
@@ -151,7 +151,7 @@ class ImageIngestionPipeline:
         faiss.write_index(self.index, os.path.join(DB_PATH, "image_index.faiss"))
         with open(os.path.join(DB_PATH, "image_metadata.pkl"), "wb") as f:
             pickle.dump(self.metadata_store, f)
-        print("\n✅ Multimodal DB successfully saved.")
+        print("\n Multimodal DB successfully saved.")
 
 if __name__ == "__main__":
     pipeline = ImageIngestionPipeline()

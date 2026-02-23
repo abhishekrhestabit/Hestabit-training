@@ -14,7 +14,7 @@ class QueryEngine:
 
     def _load_db(self):
         if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"❌ Vector DB not found at {self.db_path}. Run ingest.py first.")
+            raise FileNotFoundError(f" Vector DB not found at {self.db_path}. Run ingest.py first.")
         return FAISS.load_local(self.db_path, self.embeddings, allow_dangerous_deserialization=True)
 
     def retrieve(self, query, k=3):
@@ -32,10 +32,10 @@ if __name__ == "__main__":
 
     try:
         engine = QueryEngine(DB_PATH)
-        print("✅ Vector DB loaded. Type your query below (or 'exit' to quit).\n")
+        print(" Vector DB loaded. Type your query below (or 'exit' to quit).\n")
 
         while True:
-            query = input("❓ Query: ").strip()
+            query = input(" Query: ").strip()
             if query.lower() == "exit":
                 break
             if not query:
@@ -45,11 +45,11 @@ if __name__ == "__main__":
             print()
             for i, (doc, score) in enumerate(results, 1):
                 print(f"── Result {i} ──────────────────────────────")
-                print(f"📄 Source : {doc.metadata.get('source', 'unknown')}")
-                print(f"📃 Page   : {doc.metadata.get('page', 'N/A')}")
-                print(f"🏷️  Type   : {doc.metadata.get('file_type', 'unknown')}")
-                print(f"📊 Score  : {score:.4f}  (lower = more similar)")
-                print(f"📝 Content:\n{doc.page_content[:700]}")
+                print(f" Source : {doc.metadata.get('source', 'unknown')}")
+                print(f" Page   : {doc.metadata.get('page', 'N/A')}")
+                print(f" Type   : {doc.metadata.get('file_type', 'unknown')}")
+                print(f" Score  : {score:.4f}  (lower = more similar)")
+                print(f" Content:\n{doc.page_content[:700]}")
                 print()
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f" Error: {e}")
