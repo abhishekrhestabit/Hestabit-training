@@ -26,7 +26,7 @@ class HybridRetriever:
 
     def _load_faiss_db(self):
         if not os.path.exists(DB_PATH):
-            raise FileNotFoundError(f"❌ FAISS DB not found at {DB_PATH}. Run ingest.py first.")
+            raise FileNotFoundError(f"FAISS DB not found at {DB_PATH}. Run ingest.py first.")
         return FAISS.load_local(DB_PATH, self.embeddings, allow_dangerous_deserialization=True)
 
     def _build_bm25(self):
@@ -56,7 +56,7 @@ class HybridRetriever:
         """
         Retrieves documents using the built-in EnsembleRetriever.
         """
-        print(f"🔎 Executing Hybrid Search for: '{query}'")
+        print(f"Executing Hybrid Search for: '{query}'")
 
         # The library executes both engines in parallel and applies RRF for you
         fused_docs = self.ensemble.invoke(query)
