@@ -9,3 +9,4 @@ pypdf
 python-dotenv
 pyyaml
 tiktoken
+pdf2image
