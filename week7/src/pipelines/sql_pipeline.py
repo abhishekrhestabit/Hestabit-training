@@ -1,0 +1,113 @@
+import os
+import sys
+import sqlite3
+
+import yaml
+import google.genai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
+from src.utils.schema_loader import SchemaLoader, load_csvs_to_db
+from src.generator.sql_generator import SQLGenerator
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_DIR  = os.path.join(BASE_DIR, "data", "sql")
+DB_PATH  = os.path.join(BASE_DIR, "data", "sql", "customers.db")
+_CONFIG_PATH = os.path.abspath(os.path.join(BASE_DIR, "../config/model.yaml"))
+
+
+class SQLQAPipeline:
+    def __init__(
+        self,
+        db_path: str = DB_PATH,
+        csv_dir: str | None = CSV_DIR,
+        config_path: str | None = None,
+    ):
+        self.db_path = db_path
+        if csv_dir:
+            print("Loading CSVs into SQLite...")
+            load_csvs_to_db(csv_dir=csv_dir, db_path=db_path)
+        self.schema_loader = SchemaLoader(db_path)
+        self.sql_generator = SQLGenerator(config_path=config_path)
+
+        cfg = yaml.safe_load(open(config_path or _CONFIG_PATH))
+        api_key = os.environ.get(cfg["api_key_env"], "")
+        if not api_key:
+            raise EnvironmentError(f"Set the '{cfg['api_key_env']}' environment variable.")
+        self._client = genai.Client(api_key=api_key)
+        self._model  = cfg["model_name"]
+
+    def execute_query(self, sql: str):
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            return f"Database Execution Error: {e}"
+        finally:
+            if conn:
+                conn.close()
+
+    def summarize_results(self, user_query: str, sql: str, results: list) -> str:
+        if not results:
+            return "The database returned no results for this query."
+        prompt = f"""User asked: "{user_query}"
+
+SQL executed:
+{sql}
+
+Results (up to 50 rows):
+{results[:50]}
+
+Write a concise, human-readable answer. Do not explain the SQL.
+"""
+        resp = self._client.models.generate_content(model=self._model, contents=prompt)
+        return resp.text.strip()
+
+    def run(self, user_query: str) -> str:
+        print(f"\nQuery: '{user_query}'")
+        print("-" * 60)
+
+        schema = self.schema_loader.get_schema()
+
+        try:
+            sql = self.sql_generator.generate_sql(schema, user_query)
+        except ValueError as e:
+            return str(e)
+
+        results = self.execute_query(sql)
+        print(f"Results (first 3): {results[:3]}\n")
+
+        if isinstance(results, str) and results.startswith("Database Execution Error"):
+            print("Execution failed. Retrying with auto-correction...")
+            try:
+                sql = self.sql_generator.fix_sql(schema, sql, results)
+                results = self.execute_query(sql)
+                if isinstance(results, str):
+                    return f"Query failed after correction:\n{results}"
+            except ValueError as e:
+                return str(e)
+
+        return self.summarize_results(user_query, sql, results)
+
+
+if __name__ == "__main__":
+    pipeline = SQLQAPipeline()
+
+    queries = [
+        "How many customers are there in total?",
+        "Return the customers whose name start with a",
+        "Delete the customers subscribed in 2021?",
+    ]
+
+    for q in queries:
+        answer = pipeline.run(q)
+        print("-" * 60)
+        print(f"Answer:\n{answer}")
+        print("=" * 60)
