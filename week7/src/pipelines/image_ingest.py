@@ -85,15 +85,11 @@ class ImageIngestionPipeline:
         return self.blip_processor.decode(out[0], skip_special_tokens=True)
 
     def process_images(self):
-        # ------------------------------------------------------------------
-        # Stage 0: Convert PDFs (and any other non-image formats) → PNG files
-        # ------------------------------------------------------------------
+        
         print("\n📂 Stage 0: Scanning for PDFs and converting to images...")
         self._collect_and_convert()
 
-        # ------------------------------------------------------------------
-        # Stage 1: Collect all supported image files from IMAGE_DIR
-        # ------------------------------------------------------------------
+    
         image_files = [
             f for f in os.listdir(IMAGE_DIR)
             if f.lower().endswith(SUPPORTED_IMAGE_EXTS)
@@ -151,9 +147,6 @@ class ImageIngestionPipeline:
                 "page_number": page_number,  # None for native images
             }
 
-        # ------------------------------------------------------------------
-        # Stage 2: Persist index + metadata
-        # ------------------------------------------------------------------
         os.makedirs(DB_PATH, exist_ok=True)
         faiss.write_index(self.index, os.path.join(DB_PATH, "image_index.faiss"))
         with open(os.path.join(DB_PATH, "image_metadata.pkl"), "wb") as f:
