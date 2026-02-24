@@ -64,3 +64,8 @@ The API key itself is never hardcoded. It is read from an environment variable w
 - The free tier of the Gemini API allows 20 requests per day. Each question consumes two requests — one for SQL generation and one for summarization.
 - The in-memory database is rebuilt from CSVs on every run. Any changes to the CSV files are automatically reflected on the next run.
 - Only SQLite-compatible SQL is supported since the underlying database is SQLite.
+
+## Outputs
+
+![alt text](Day4/Output1.png)
+![alt text](Day4/Output2.png)
