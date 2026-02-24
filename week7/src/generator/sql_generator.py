@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-
 import yaml
 import google.genai as genai
 from dotenv import load_dotenv
@@ -32,48 +31,37 @@ class SQLGenerator:
         return re.sub(r"```$", "", text).strip()
 
     def is_safe_query(self, sql: str) -> bool:
-        forbidden = [
-            r"\bDROP\b", r"\bDELETE\b", r"\bUPDATE\b", r"\bINSERT\b",
-            r"\bALTER\b", r"\bTRUNCATE\b", r"\bGRANT\b", r"\bREVOKE\b",
-            r"\bATTACH\b", r"\bDETACH\b", r"\bPRAGMA\b",
+        # Block anything that writes, modifies, or restructures the database.
+        # Everything else (SELECT, WITH, EXPLAIN, EXPLAIN QUERY PLAN, …) is allowed.
+        write_commands = [
+            r"\bINSERT\b", r"\bUPDATE\b", r"\bDELETE\b", r"\bREPLACE\b", r"\bUPSERT\b",
+            r"\bCREATE\b", r"\bDROP\b",   r"\bALTER\b",  r"\bRENAME\b", r"\bTRUNCATE\b",
+            r"\bATTACH\b", r"\bDETACH\b",
+            r"\bGRANT\b",  r"\bREVOKE\b",
+            r"\bVACUUM\b", r"\bREINDEX\b",
         ]
-        for pattern in forbidden:
+        for pattern in write_commands:
             if re.search(pattern, sql, re.IGNORECASE):
                 return False
-        return bool(re.search(r"^\s*(WITH\s+.*?SELECT\b|SELECT\b)", sql, re.IGNORECASE | re.DOTALL))
+        return True
 
-    def generate_sql(self, schema: str, user_query: str) -> str:
+    def generate_sql(self, schema: str, user_query: str, broken_sql: str = None, error_msg: str = None) -> str:
         prompt = f"""You are an expert SQLite developer.
 Given the schema below, write a SQL query answering the user's question.
 
 {schema}
 
 Question: "{user_query}"
-
-Return ONLY the raw SQL SELECT query. No markdown, no explanations.
-All column/table names are lowercase with underscores.
 """
+        # Dynamically append the error correction logic if needed
+        if broken_sql and error_msg:
+            prompt += f"\nCRITICAL ERROR: Your last query failed.\nBroken SQL: {broken_sql}\nError: {error_msg}\nFix it."
+
+        prompt += "\nReturn ONLY the raw SQL SELECT query. No markdown, no explanations."
+        
         sql = self._generate(prompt)
         print(f"Generated SQL:\n{sql}\n")
+        
         if not self.is_safe_query(sql):
             raise ValueError(f"SECURITY ALERT: Unsafe SQL blocked.\n{sql}")
-        return sql
-
-    def fix_sql(self, schema: str, broken_sql: str, error: str) -> str:
-        prompt = f"""Fix this SQLite query that produced an error.
-
-Schema:
-{schema}
-
-Broken SQL:
-{broken_sql}
-
-Error: {error}
-
-Return ONLY the corrected raw SQL query. No markdown, no explanations.
-"""
-        sql = self._generate(prompt)
-        print(f"Corrected SQL:\n{sql}\n")
-        if not self.is_safe_query(sql):
-            raise ValueError(f"SECURITY ALERT: Corrected SQL still unsafe.\n{sql}")
         return sql

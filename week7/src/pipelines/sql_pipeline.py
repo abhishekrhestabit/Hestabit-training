@@ -13,24 +13,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 from src.utils.schema_loader import SchemaLoader, load_csvs_to_db
 from src.generator.sql_generator import SQLGenerator
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_DIR  = os.path.join(BASE_DIR, "data", "sql")
-DB_PATH  = os.path.join(BASE_DIR, "data", "sql", "customers.db")
+BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_DIR     = os.path.join(BASE_DIR, "data", "sql")
 _CONFIG_PATH = os.path.abspath(os.path.join(BASE_DIR, "../config/model.yaml"))
 
 
 class SQLQAPipeline:
-    def __init__(
-        self,
-        db_path: str = DB_PATH,
-        csv_dir: str | None = CSV_DIR,
-        config_path: str | None = None,
-    ):
-        self.db_path = db_path
-        if csv_dir:
-            print("Loading CSVs into SQLite...")
-            load_csvs_to_db(csv_dir=csv_dir, db_path=db_path)
-        self.schema_loader = SchemaLoader(db_path)
+    def __init__(self, csv_dir: str = CSV_DIR, config_path: str | None = None):
+        print("Loading CSVs into in-memory SQLite...")
+        self.conn = load_csvs_to_db(csv_dir)
+        self.conn.row_factory = sqlite3.Row
+
+        self.schema_loader = SchemaLoader(self.conn)
         self.sql_generator = SQLGenerator(config_path=config_path)
 
         cfg = yaml.safe_load(open(config_path or _CONFIG_PATH))
@@ -39,20 +33,11 @@ class SQLQAPipeline:
             raise EnvironmentError(f"Set the '{cfg['api_key_env']}' environment variable.")
         self._client = genai.Client(api_key=api_key)
         self._model  = cfg["model_name"]
-
     def execute_query(self, sql: str):
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            return [dict(row) for row in cursor.fetchall()]
-        except sqlite3.Error as e:
-            return f"Database Execution Error: {e}"
-        finally:
-            if conn:
-                conn.close()
+        # Let the error raise naturally instead of returning a string
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        return [dict(row) for row in cursor.fetchall()]
 
     def summarize_results(self, user_query: str, sql: str, results: list) -> str:
         if not results:
@@ -65,10 +50,11 @@ SQL executed:
 Results (up to 50 rows):
 {results[:50]}
 
-Write a concise, human-readable answer. Do not explain the SQL.
+Answer the user's question directly using the data above.
+If the results are a list of records, include the actual names/values — do not just summarise counts.
+Do not explain the SQL.
 """
-        resp = self._client.models.generate_content(model=self._model, contents=prompt)
-        return resp.text.strip()
+        return self._client.models.generate_content(model=self._model, contents=prompt).text.strip()
 
     def run(self, user_query: str) -> str:
         print(f"\nQuery: '{user_query}'")
@@ -87,7 +73,7 @@ Write a concise, human-readable answer. Do not explain the SQL.
         if isinstance(results, str) and results.startswith("Database Execution Error"):
             print("Execution failed. Retrying with auto-correction...")
             try:
-                sql = self.sql_generator.fix_sql(schema, sql, results)
+                sql = self.sql_generator.generate_sql(schema, user_query, broken_sql=sql, error_msg=results)
                 results = self.execute_query(sql)
                 if isinstance(results, str):
                     return f"Query failed after correction:\n{results}"
