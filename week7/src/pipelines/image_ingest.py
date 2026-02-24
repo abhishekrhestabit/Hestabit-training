@@ -119,8 +119,11 @@ class ImageIngestionPipeline:
             image_vector   = np.array(self.embedder.embed_image(filepath), dtype=np.float32)
             caption_vector = np.array(self.embedder.embed_text(caption),   dtype=np.float32)
 
-            # Weighted average fusion: 60% semantic (caption) + 40% visual (image)
-            fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
+            if ocr_text:
+                ocr_vector   = np.array(self.embedder.embed_text(ocr_text), dtype=np.float32)
+                fused_vector = (0.4 * caption_vector) + (0.3 * ocr_vector) + (0.3 * image_vector)
+            else:
+                fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
 
             # L2 Normalize so inner-product == cosine similarity in FAISS
             norm = np.linalg.norm(fused_vector)
