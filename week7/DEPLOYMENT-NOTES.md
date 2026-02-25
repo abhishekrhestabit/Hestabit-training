@@ -16,6 +16,9 @@ The system is a unified CLI-based RAG engine exposing three endpoints: `/ask` (t
 
 A dedicated `/history` endpoint displays all stored exchanges with timestamps and roles at any point during the session, independent of the other endpoints.
 
+## Human Feedback Logging
+After any response, the `/feedback` endpoint prompts for a rating (1–5) and an optional comment. The feedback is written directly onto the last assistant entry in `CHAT-LOGS.json` under a `human_feedback` field containing the rating, comment, and timestamp. This allows post-hoc quality review without a separate storage layer.
+
 ## Evaluation & Self-Refinement
 `RAGEvaluator` submits a structured judge prompt to Gemini and expects a JSON response containing `is_faithful`, `confidence_score`, and `critique`. If `is_faithful` is false, the engine automatically re-runs the endpoint with a stricter prompt and re-evaluates. The second result is used regardless.
 

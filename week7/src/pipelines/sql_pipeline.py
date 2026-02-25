@@ -15,8 +15,7 @@ from src.generator.sql_generator import SQLGenerator
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_DIR     = os.path.join(BASE_DIR, "data", "sql")
-_CONFIG_PATH = os.path.abspath(os.path.join(BASE_DIR, "../config/model.yaml"))
-
+_CONFIG_PATH = os.path.join(BASE_DIR, "config", "model.yaml")
 
 class SQLQAPipeline:
     def __init__(self, csv_dir: str = CSV_DIR, config_path: str | None = None):
@@ -56,8 +55,9 @@ Do not explain the SQL.
 """
         return self._client.models.generate_content(model=self._model, contents=prompt).text.strip()
 
-    def run(self, user_query: str) -> str:
-        print(f"\nQuery: '{user_query}'")
+    def run(self, user_query: str, display_query: str = "") -> str:
+        label = display_query or user_query
+        print(f"\nQuery: '{label}'")
         print("-" * 60)
 
         schema = self.schema_loader.get_schema()

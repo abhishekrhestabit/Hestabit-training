@@ -9,7 +9,7 @@ load_dotenv()
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-_CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../config/model.yaml"))
+_CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src/config/model.yaml"))
 
 
 def _load_gemini(config_path: str | None = None):

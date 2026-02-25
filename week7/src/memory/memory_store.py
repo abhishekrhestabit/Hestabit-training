@@ -15,12 +15,12 @@ class MemoryStore:
             history = json.load(f)
         return history[-(self.max_history * 2):]
 
-    def add_interaction(self, user_query: str, ai_response: str, metadata: dict = None):
+    def add_interaction(self, user_query: str, ai_response: str, metadata: dict = None, endpoint: str = ""):
         with open(self.filepath, 'r') as f:
             history = json.load(f)
         ts = datetime.now().isoformat()
-        entry_user = {"role": "user", "content": user_query, "timestamp": ts}
-        entry_asst = {"role": "assistant", "content": ai_response, "timestamp": ts}
+        entry_user = {"role": "user", "content": user_query, "timestamp": ts, "endpoint": endpoint}
+        entry_asst = {"role": "assistant", "content": ai_response, "timestamp": ts, "endpoint": endpoint}
         if metadata:
             entry_asst["metadata"] = metadata
         history.extend([entry_user, entry_asst])
@@ -33,6 +33,20 @@ class MemoryStore:
         if not history:
             return "No previous conversation."
         return "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in history)
+
+    def log_feedback(self, rating: int, comment: str = ""):
+        with open(self.filepath, 'r') as f:
+            history = json.load(f)
+        for entry in reversed(history):
+            if entry["role"] == "assistant":
+                entry["human_feedback"] = {
+                    "rating": rating,
+                    "comment": comment,
+                    "timestamp": datetime.now().isoformat()
+                }
+                break
+        with open(self.filepath, 'w') as f:
+            json.dump(history, f, indent=2)
 
     def clear(self):
         with open(self.filepath, 'w') as f:

@@ -86,7 +86,7 @@ class RAGEngine:
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, answer, metadata=ev)
+        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask")
         return answer, ev
 
     # ── /ask-sql ──────────────────────────────────────────
@@ -95,8 +95,8 @@ class RAGEngine:
         history = self.memory.format_history_for_prompt()
         contextualized = f"Previous Chat:\n{history}\n\nNew Question: {query}"
 
-        answer, sql, results = self.sql_pipeline.run(contextualized)
-        context_used = self.sql_pipeline.schema_loader.get_schema()
+        answer, sql, results = self.sql_pipeline.run(contextualized, display_query=query)
+        context_used = str(results[:20])
         self._trace("SQL", "Query executed and summarized")
 
         ev = self.evaluator.evaluate_response(query, context_used, answer)
@@ -105,12 +105,12 @@ class RAGEngine:
         if not ev.get("is_faithful", True):
             self._trace("REFINE", "Hallucination detected — re-running strict...")
             strict = contextualized + "\nCRITICAL: Answer strictly from database. No hallucination."
-            answer, sql, results = self.sql_pipeline.run(strict)
+            answer, sql, results = self.sql_pipeline.run(strict, display_query=query)
             ev = self.evaluator.evaluate_response(query, context_used, answer)
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, answer, metadata=ev)
+        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-sql")
         return answer, sql, results, ev
 
     # ── /ask-image ────────────────────────────────────────
@@ -121,7 +121,7 @@ class RAGEngine:
         context = "\n".join(r["metadata"]["caption"] for r in results)
         ev = self.evaluator.evaluate_response(query, context, formatted)
         self._trace("IMAGE-TEXT", f"{len(results)} results in {time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, formatted, metadata=ev)
+        self.memory.add_interaction(query, formatted, metadata=ev, endpoint="/ask-image:text")
         return results, formatted, ev
 
     def ask_image_image(self, image_path: str, top_k: int = 3):
@@ -131,7 +131,7 @@ class RAGEngine:
         context = "\n".join(r["metadata"]["caption"] for r in results)
         ev = self.evaluator.evaluate_response(image_path, context, formatted)
         self._trace("IMAGE-IMG", f"{len(results)} results in {time.time()-t0:.1f}s")
-        self.memory.add_interaction(f"[image:{image_path}]", formatted, metadata=ev)
+        self.memory.add_interaction(f"[image:{image_path}]", formatted, metadata=ev, endpoint="/ask-image:image")
         return results, formatted, ev
 
     def _format_image_results(self, results):
@@ -217,6 +217,18 @@ def main():
                 print_eval(ev)
             else:
                 print("Use 'text' or 'image'.")
+        elif cmd == "/feedback":
+            try:
+                rating = int(input("Rating (1-5): ").strip())
+                if rating not in range(1, 6):
+                    print("Rating must be 1-5.")
+                    continue
+            except ValueError:
+                print("Enter a number 1-5.")
+                continue
+            comment = input("Comment (optional): ").strip()
+            engine.memory.log_feedback(rating, comment)
+            print("Feedback logged.")
         elif cmd == "/history":
             history = engine.memory.get_history()
             if not history:
@@ -232,7 +244,7 @@ def main():
             engine.memory.clear()
             print("Memory cleared.")
         else:
-            print("Commands: /ask  /ask-image  /ask-sql  /history  /clear  /quit")
+            print("Commands: /ask  /ask-image  /ask-sql  /feedback  /history  /clear  /quit")
 
 
 if __name__ == "__main__":
