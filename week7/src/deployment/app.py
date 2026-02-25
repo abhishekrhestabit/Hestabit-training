@@ -143,10 +143,10 @@ class RAGEngine:
             + f"\nSimilar images found:\n" + "\n".join(similar_parts)
             + "\n\nFirst, briefly describe what the query is about. "
             "Then mention the similar images using a phrase like 'Similarly, there also exist...' "
-            "and describe each briefly."
+            "and describe each briefly, including the filename in parentheses."
         )
         answer = self._llm(prompt)
-        context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['caption'] for r in results)}"
+        context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['filename'] + ': ' + r['metadata']['caption'] for r in results)}"
         ev = self.evaluator.evaluate_response(query, context, answer)
         final_answer = ev.get("fixed_answer", answer)
         mode = "image" if is_image else "text"
