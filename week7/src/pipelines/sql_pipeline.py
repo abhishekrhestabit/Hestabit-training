@@ -76,11 +76,11 @@ Do not explain the SQL.
                 sql = self.sql_generator.generate_sql(schema, user_query, broken_sql=sql, error_msg=results)
                 results = self.execute_query(sql)
                 if isinstance(results, str):
-                    return f"Query failed after correction:\n{results}"
+                    return f"Query failed after correction:\n{results}", sql, []
             except ValueError as e:
-                return str(e)
+                return str(e), sql, []
 
-        return self.summarize_results(user_query, sql, results)
+        return self.summarize_results(user_query, sql, results), sql, results
 
 
 if __name__ == "__main__":
@@ -93,7 +93,9 @@ if __name__ == "__main__":
     ]
 
     for q in queries:
-        answer = pipeline.run(q)
+        answer, sql, results = pipeline.run(q)
         print("-" * 60)
+        print(f"SQL:\n{sql}")
+        print(f"Results (first 3): {results[:3]}")
         print(f"Answer:\n{answer}")
         print("=" * 60)

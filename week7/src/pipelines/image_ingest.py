@@ -29,8 +29,8 @@ class ImageIngestionPipeline:
         self.blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
         self.blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(self.device)
         
-        # Initialize flat FAISS index for 512-dimensional CLIP vectors
-        self.index = faiss.IndexFlatIP(512) 
+        self.index = faiss.IndexFlatIP(512)
+        self.clip_index = faiss.IndexFlatIP(512)
         self.metadata_store = {}
 
 
@@ -130,7 +130,12 @@ class ImageIngestionPipeline:
             if norm > 0:
                 fused_vector = fused_vector / norm
 
-            # 3. Store fused 512D vector in FAISS and metadata dict
+            # Store pure CLIP image vector (for text→image search)
+            clip_norm = np.linalg.norm(image_vector)
+            if clip_norm > 0:
+                image_vector = image_vector / clip_norm
+            self.clip_index.add(np.array([image_vector], dtype=np.float32))
+
             self.index.add(np.array([fused_vector], dtype=np.float32))
 
             # Reconstruct source PDF / page info when applicable
@@ -152,6 +157,7 @@ class ImageIngestionPipeline:
 
         os.makedirs(DB_PATH, exist_ok=True)
         faiss.write_index(self.index, os.path.join(DB_PATH, "image_index.faiss"))
+        faiss.write_index(self.clip_index, os.path.join(DB_PATH, "image_index_clip.faiss"))
         with open(os.path.join(DB_PATH, "image_metadata.pkl"), "wb") as f:
             pickle.dump(self.metadata_store, f)
         print("\n Multimodal DB successfully saved.")

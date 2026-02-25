@@ -1,12 +1,10 @@
 import os
 import sys
 
-# Add week7/ to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
-from langchain_community.retrievers import EnsembleRetriever
 from src.embeddings.embedder import Embedder
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,13 +14,12 @@ class HybridRetriever:
     def __init__(self, top_k=5):
         self.top_k = top_k
         self.embeddings = Embedder().get_embeddings()
-        
-        # Load the base engines
         self.faiss_db = self._load_faiss_db()
         self.bm25_retriever = self._build_bm25()
-        
-        # Initialize the official LangChain RRF wrapper
-        self.ensemble = self._build_ensemble()
+        self.semantic_retriever = self.faiss_db.as_retriever(
+            search_type="mmr",
+            search_kwargs={"k": top_k, "fetch_k": 20}
+        )
 
     def _load_faiss_db(self):
         if not os.path.exists(DB_PATH):
@@ -37,35 +34,23 @@ class HybridRetriever:
         retriever.k = self.top_k
         return retriever
 
-    def _build_ensemble(self):
-        """Wraps FAISS and BM25 into a single object that handles RRF automatically."""
-        # Setup Semantic Retriever (with MMR)
-        semantic_retriever = self.faiss_db.as_retriever(
-            search_type="mmr", 
-            search_kwargs={"k": self.top_k, "fetch_k": 20}
-        )
-        
-        # Combine them using EnsembleRetriever
-        # The 'weights' parameter automatically handles the Reciprocal Rank Fusion math
-        return EnsembleRetriever(
-            retrievers=[semantic_retriever, self.bm25_retriever],
-            weights=[0.5, 0.5] # 50% Semantic, 50% Keyword
-        )
+    def _rrf(self, *ranked_lists, k=60):
+        """Reciprocal Rank Fusion over multiple ranked doc lists."""
+        scores = {}
+        all_docs = {}
+        for ranked in ranked_lists:
+            for rank, doc in enumerate(ranked):
+                key = doc.page_content
+                scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
+                all_docs[key] = doc
+        sorted_keys = sorted(scores, key=scores.__getitem__, reverse=True)
+        return [all_docs[k] for k in sorted_keys]
 
     def retrieve(self, query, filters=None):
-        """
-        Retrieves documents using the built-in EnsembleRetriever.
-        """
         print(f"Executing Hybrid Search for: '{query}'")
-
-        # The library executes both engines in parallel and applies RRF for you
-        fused_docs = self.ensemble.invoke(query)
-
-        # Apply metadata filters post-retrieval
+        semantic_docs = self.semantic_retriever.invoke(query)
+        bm25_docs = self.bm25_retriever.invoke(query)
+        fused = self._rrf(semantic_docs, bm25_docs)
         if filters:
-            fused_docs = [
-                doc for doc in fused_docs
-                if all(doc.metadata.get(k) == v for k, v in filters.items())
-            ]
-
-        return fused_docs[:self.top_k]
+            fused = [d for d in fused if all(d.metadata.get(k) == v for k, v in filters.items())]
+        return fused[:self.top_k]

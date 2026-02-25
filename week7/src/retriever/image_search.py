@@ -20,7 +20,8 @@ class ImageSearchEngine:
         # 1. Load CLIP for all embedding (text + image)
         print("Loading CLIP Embedder...")
         self.clip_embedder = CLIPEmbedder()
-        self.index = self._load_index()
+        self.fused_index = self._load_index("image_index.faiss")
+        self.clip_index = self._load_index("image_index_clip.faiss")
         self.metadata = self._load_metadata()
 
         # 2. Load BLIP for Live Query Image Captioning
@@ -28,11 +29,11 @@ class ImageSearchEngine:
         self.blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
         self.blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(self.device)
 
-    def _load_index(self):
-        index_path = os.path.join(DB_PATH, "image_index.faiss")
-        if not os.path.exists(index_path):
-            raise FileNotFoundError("FAISS image index not found. Run image_ingest.py first.")
-        return faiss.read_index(index_path)
+    def _load_index(self, name):
+        path = os.path.join(DB_PATH, name)
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"{name} not found. Run image_ingest.py first.")
+        return faiss.read_index(path)
 
     def _load_metadata(self):
         meta_path = os.path.join(DB_PATH, "image_metadata.pkl")
@@ -52,31 +53,20 @@ class ImageSearchEngine:
         norm = np.linalg.norm(fused)
         return fused / norm if norm > 0 else fused
 
+    def _search(self, index, vector, top_k):
+        distances, indices = index.search(np.array([vector], dtype=np.float32), top_k)
+        return [{"score": float(s), "metadata": self.metadata[i]}
+                for s, i in zip(distances[0], indices[0]) if i != -1]
+
+    def _normalize(self, v):
+        n = np.linalg.norm(v)
+        return v / n if n > 0 else v
+
     def search_by_text(self, text_query: str, top_k=3):
-        """
-        Text-to-Image Search (Early Fusion):
-        Embeds the query text with CLIP, L2-normalizes it, and performs a
-        direct inner-product search against the fused index.
-        """
-        print(f"\n Searching fused index for text query: '{text_query}'...")
-
-        # Embed text with CLIP and L2 normalize
-        query_vector = np.array(self.clip_embedder.embed_text(text_query), dtype=np.float32)
-        norm = np.linalg.norm(query_vector)
-        if norm > 0:
-            query_vector = query_vector / norm
-
-        # Direct FAISS inner-product search
-        distances, indices = self.index.search(np.array([query_vector], dtype=np.float32), top_k)
-
-        results = []
-        for score, idx in zip(distances[0], indices[0]):
-            if idx != -1:
-                results.append({
-                    "score": float(score),
-                    "metadata": self.metadata[idx]
-                })
-        return results
+        """Text→Image: CLIP text embedding vs pure CLIP image embeddings."""
+        print(f"  [SEARCH] text→image: '{text_query}'")
+        query_vector = self._normalize(np.array(self.clip_embedder.embed_text(text_query), dtype=np.float32))
+        return self._search(self.clip_index, query_vector, top_k)
 
     def search_by_image(self, image_path: str, top_k=3):
         """
@@ -98,17 +88,8 @@ class ImageSearchEngine:
         # 3. Apply the same 60/40 fusion + L2 normalization used at ingest time
         fused_vector = self._fuse_and_normalize(caption_vector, image_vector)
 
-        # 4. Direct FAISS inner-product search against the fused index
-        distances, indices = self.index.search(np.array([fused_vector], dtype=np.float32), top_k)
-
-        results = []
-        for score, idx in zip(distances[0], indices[0]):
-            if idx != -1:
-                results.append({
-                    "score": float(score),
-                    "metadata": self.metadata[idx]
-                })
-        return results
+        # Search fused index (matches ingest-time fusion)
+        return self._search(self.fused_index, fused_vector, top_k)
 
 if __name__ == "__main__":
     search_engine = ImageSearchEngine()
