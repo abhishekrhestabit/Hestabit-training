@@ -115,7 +115,7 @@ class RAGEngine:
         self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-sql")
         return final_answer, sql, results, ev
 
-    # ── /ask-image ────────────────────────────────────────
+   # ── /ask-image ────────────────────────────────────────
     def ask_image(self, query: str, top_k: int = 3):
         t0 = time.time()
         is_image = os.path.isfile(query)
@@ -138,22 +138,40 @@ class RAGEngine:
             part = f"- {m['filename']} (caption: {m['caption']}" + (f", text: {m['ocr']}" if m.get('ocr') else "") + ")"
             similar_parts.append(part)
 
-        prompt = (
-            query_context
-            + f"\nSimilar images found:\n" + "\n".join(similar_parts)
-            + "\n\nFirst, briefly describe what the query is about. "
-            "Then mention the similar images using a phrase like 'Similarly, there also exist...' "
-            "and describe each briefly, including the filename in parentheses."
-        )
+        # --- THE UPGRADED PROMPT ---
+        retrieved_images_text = "\n".join(similar_parts)
+        prompt = f"""You are a helpful, expert visual search assistant. 
+Your goal is to answer the user's query and clearly explain the visually similar images we found in the database.
+
+--- USER QUERY ---
+{query_context}
+
+--- RETRIEVED IMAGES FROM DATABASE ---
+{retrieved_images_text}
+
+--- INSTRUCTIONS ---
+1. Opening: Start with a brief, natural summary directly addressing the user's query.
+2. The Handoff: Smoothly transition to mentioning the similar images we retrieved.
+3. The Breakdown: Describe each retrieved image concisely. Highlight why it is relevant to the query.
+4. The Reference: You MUST include the exact filename for every image you mention, wrapped in parentheses at the end of its description (e.g., (diagram_v2.png)).
+5. Formatting: Use bullet points when listing the similar images so it is easy for the user to scan. 
+"""
+
         answer = self._llm(prompt)
+        
+        # Format the context strictly for the evaluator
         context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['filename'] + ': ' + r['metadata']['caption'] for r in results)}"
+        
         ev = self.evaluator.evaluate_response(query, context, answer)
         final_answer = ev.get("fixed_answer", answer)
         mode = "image" if is_image else "text"
+        
         self._trace(f"IMAGE-{mode.upper()}", f"{len(results)} results in {time.time()-t0:.1f}s")
         self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-image")
+        
         return results, final_answer, ev
-
+    
+    
     def _format_image_results(self, results):
         lines = []
         for i, r in enumerate(results, 1):

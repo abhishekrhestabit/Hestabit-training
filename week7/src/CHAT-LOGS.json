@@ -1,40 +1,6 @@
 [
   {
     "role": "user",
-    "content": "/home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg",
-    "timestamp": "2026-02-25T18:35:08.050303",
-    "endpoint": "/ask-image"
-  },
-  {
-    "role": "assistant",
-    "content": "The query is about a scene depicting the moon in the sky above the city of London.\n\nSimilarly, there also exist:\n*   an image captioned \"the moon is seen in the sky above the city of london\", which shows the moon above London, mirroring the query's subject.\n*   an image captioned \"a full moon is seen in the sky above trees\", depicting a full moon in the sky over trees, offering a similar celestial focus but a different landscape.\n*   and an image captioned \"a large moon with a white background\", which presents a large moon against a plain white background, focusing solely on the celestial body itself.",
-    "timestamp": "2026-02-25T18:35:08.050303",
-    "endpoint": "/ask-image",
-    "metadata": {
-      "is_faithful": true,
-      "confidence_score": 100,
-      "critique": "The answer accurately and comprehensively describes the query and all similar items listed in the factual context without any hallucinations."
-    }
-  },
-  {
-    "role": "user",
-    "content": "cat",
-    "timestamp": "2026-02-25T18:39:19.770591",
-    "endpoint": "/ask-image"
-  },
-  {
-    "role": "assistant",
-    "content": "The query is about finding images of a cat.\n\nSimilarly, there also exist: a cat with green eyes; a cat sitting on a wooden bench; and a cat laying on a bed with its eyes closed.",
-    "timestamp": "2026-02-25T18:39:19.770591",
-    "endpoint": "/ask-image",
-    "metadata": {
-      "is_faithful": true,
-      "confidence_score": 98,
-      "critique": "The answer accurately states what the query is about and faithfully lists the 'similar' examples directly from the provided context."
-    }
-  },
-  {
-    "role": "user",
     "content": "cat",
     "timestamp": "2026-02-25T18:57:09.233515",
     "endpoint": "/ask-image"
@@ -83,6 +49,40 @@
       "is_faithful": true,
       "confidence_score": 100,
       "critique": "The answer perfectly describes the query image and lists all similar images with their associated descriptions, using only the provided factual context."
+    }
+  },
+  {
+    "role": "user",
+    "content": "dog",
+    "timestamp": "2026-02-25T19:37:05.952859",
+    "endpoint": "/ask-image"
+  },
+  {
+    "role": "assistant",
+    "content": "Based on your query for \"dog,\" I've found some visually similar images that match your request.\n\nHere are the images we retrieved:\n\n*   This image shows a dog sitting in the grass with a leash, clearly depicting a dog as you requested. (just_image_image12(6).jpeg.jpg)\n*   Another relevant image features a white dog wearing a purple collar, directly matching your search for a dog. (just_image_image10(6).jpeg.jpg)\n*   This image displays two small blue dogs, providing more examples of dogs relevant to your query. (just_image_image14(6).jpeg.jpg)",
+    "timestamp": "2026-02-25T19:37:05.952859",
+    "endpoint": "/ask-image",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The answer accurately and completely presents all the similar images described in the factual context, directly addressing the query 'dog'."
+    }
+  },
+  {
+    "role": "user",
+    "content": "/home/abhishekrai/Training/week7/src/data/images/just_image_image13.jpeg.jpg",
+    "timestamp": "2026-02-25T19:39:07.482241",
+    "endpoint": "/ask-image"
+  },
+  {
+    "role": "assistant",
+    "content": "Based on your query for \"a puffy puffer bird with a blue beak,\" I've found some visually similar images in our database for you.\n\nHere are the images we retrieved:\n\n*   This image is an excellent match for your query, depicting a puffy puffer bird with a distinctive blue beak. It directly corresponds to the visual characteristics you described. (just_image_image13.jpeg.jpg)\n*   This image shows a bird perched on a branch. While it's relevant because it features a bird, it does not specifically highlight the \"puffy puffer\" characteristic or a \"blue beak\" as detailed in your query. (Bird.png)\n*   Similar to the previous result, this image also portrays a bird perched on a branch. It matches the general \"bird\" aspect of your query, but lacks the specific visual cues of being puffy or having a blue beak. (just_image_bird.png)",
+    "timestamp": "2026-02-25T19:39:07.482241",
+    "endpoint": "/ask-image",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The answer is completely supported by the factual context, accurately describing each image's relevance to the query without any extraneous information or hallucinations."
     }
   }
 ]
