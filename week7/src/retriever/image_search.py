@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import faiss
 import torch
+import pytesseract
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
 
@@ -68,27 +69,19 @@ class ImageSearchEngine:
         query_vector = self._normalize(np.array(self.clip_embedder.embed_text(text_query), dtype=np.float32))
         return self._search(self.clip_index, query_vector, top_k)
 
-    def search_by_image(self, image_path: str, top_k=3):
-        """
-        Image-to-Image Search (Early Fusion):
-        Generates a live BLIP caption for the query image, embeds both the
-        caption and the image with CLIP, applies the same 60/40 fusion and
-        L2 normalization used at ingest time, then searches the fused index.
-        """
-        print(f"\n Processing query image: '{os.path.basename(image_path)}'")
+    def extract_caption_ocr(self, image_path: str) -> dict:
+        img = Image.open(image_path).convert("RGB")
+        caption = self._extract_live_caption(image_path)
+        ocr = pytesseract.image_to_string(img).strip()
+        return {"caption": caption, "ocr": ocr}
 
-        # 1. Generate live caption
+    def search_by_image(self, image_path: str, top_k=3):
+        print(f"\n Processing query image: '{os.path.basename(image_path)}'")
         query_caption = self._extract_live_caption(image_path)
         print(f" Live Caption Generated: '{query_caption}'")
-
-        # 2. Embed caption and raw image independently with CLIP
         caption_vector = np.array(self.clip_embedder.embed_text(query_caption), dtype=np.float32)
         image_vector = np.array(self.clip_embedder.embed_image(image_path), dtype=np.float32)
-
-        # 3. Apply the same 60/40 fusion + L2 normalization used at ingest time
         fused_vector = self._fuse_and_normalize(caption_vector, image_vector)
-
-        # Search fused index (matches ingest-time fusion)
         return self._search(self.fused_index, fused_vector, top_k)
 
 if __name__ == "__main__":

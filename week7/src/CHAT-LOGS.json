@@ -1,56 +1,6 @@
 [
   {
     "role": "user",
-    "content": "[image:/home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg]",
-    "timestamp": "2026-02-25T14:19:17.072516"
-  },
-  {
-    "role": "assistant",
-    "content": "  1. just_image_full-moon.png.jpg\n     Path      : /home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg\n     Confidence: 100.0%\n     Caption   : the moon is seen in the sky above the city of london\n  2. just_image_Full-Easter-Moon-736x490-c-default.jpg.jpg\n     Path      : /home/abhishekrai/Training/week7/src/data/images/just_image_Full-Easter-Moon-736x490-c-default.jpg.jpg\n     Confidence: 83.6%\n     Caption   : a full moon is seen in the sky above trees\n  3. just_image_FourPointPuzzlesTheMoon1transparentsquare.png.jpg\n     Path      : /home/abhishekrai/Training/week7/src/data/images/just_image_FourPointPuzzlesTheMoon1transparentsquare.png.jpg\n     Confidence: 80.0%\n     Caption   : a large moon with a white background",
-    "timestamp": "2026-02-25T14:19:17.072516",
-    "metadata": {
-      "is_faithful": true,
-      "confidence_score": 100.0,
-      "critique": "The generated answer accurately identifies the image path and provides captions that are directly supported by the factual context."
-    }
-  },
-  {
-    "role": "user",
-    "content": "what is the name of the company?",
-    "timestamp": "2026-02-25T15:34:30.544147"
-  },
-  {
-    "role": "assistant",
-    "content": "Insufficient",
-    "timestamp": "2026-02-25T15:34:30.544147",
-    "metadata": {
-      "is_faithful": true,
-      "confidence_score": 100,
-      "critique": "The question is asking for 'the name of the company', which is ambiguous as multiple companies are mentioned in the context. The generated answer 'Insufficient' accurately reflects this ambiguity and inability to pinpoint a single company based on the provided context."
-    },
-    "human_feedback": {
-      "rating": 4,
-      "comment": "",
-      "timestamp": "2026-02-25T15:37:22.545006"
-    }
-  },
-  {
-    "role": "user",
-    "content": "How many people with name starting with a and ending with e",
-    "timestamp": "2026-02-25T16:09:49.201719"
-  },
-  {
-    "role": "assistant",
-    "content": "11",
-    "timestamp": "2026-02-25T16:09:49.201719",
-    "metadata": {
-      "is_faithful": "False",
-      "confidence_score": 0,
-      "critique": "The generated answer is a number, but the provided context does not contain any data that can be used to count people with names starting with 'a' and ending with 'e'. Therefore, the answer cannot be verified."
-    }
-  },
-  {
-    "role": "user",
     "content": "How many people with name starting with a and ending with e",
     "timestamp": "2026-02-25T16:15:33.271897",
     "endpoint": "/ask-sql"
@@ -81,6 +31,57 @@
       "is_faithful": true,
       "confidence_score": 100,
       "critique": "The factual context directly provides the count of people matching the specified criteria, making the answer faithful and highly confident."
+    }
+  },
+  {
+    "role": "user",
+    "content": "[image:/home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg]",
+    "timestamp": "2026-02-25T18:23:40.939594",
+    "endpoint": "/ask-image:ai"
+  },
+  {
+    "role": "assistant",
+    "content": "The given image shows the moon situated in the sky, with the city of London visible below it.\n\nSimilarly, there also exist:\n*   `just_image_full-moon.png.jpg`: This image also features the moon in the sky above the city of London.\n*   `just_image_Full-Easter-Moon-736x490-c-default.jpg.jpg`: This image displays a full moon in the sky, though it is positioned above trees rather than a city.\n*   `just_image_FourPointPuzzlesTheMoon1transparentsquare.png.jpg`: This image presents a large moon against a white background.",
+    "timestamp": "2026-02-25T18:23:40.939594",
+    "endpoint": "/ask-image:ai",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The generated answer accurately describes the image based on the provided factual context and correctly identifies similar images based on the similarities provided."
+    }
+  },
+  {
+    "role": "user",
+    "content": "/home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg",
+    "timestamp": "2026-02-25T18:35:08.050303",
+    "endpoint": "/ask-image"
+  },
+  {
+    "role": "assistant",
+    "content": "The query is about a scene depicting the moon in the sky above the city of London.\n\nSimilarly, there also exist:\n*   an image captioned \"the moon is seen in the sky above the city of london\", which shows the moon above London, mirroring the query's subject.\n*   an image captioned \"a full moon is seen in the sky above trees\", depicting a full moon in the sky over trees, offering a similar celestial focus but a different landscape.\n*   and an image captioned \"a large moon with a white background\", which presents a large moon against a plain white background, focusing solely on the celestial body itself.",
+    "timestamp": "2026-02-25T18:35:08.050303",
+    "endpoint": "/ask-image",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The answer accurately and comprehensively describes the query and all similar items listed in the factual context without any hallucinations."
+    }
+  },
+  {
+    "role": "user",
+    "content": "cat",
+    "timestamp": "2026-02-25T18:39:19.770591",
+    "endpoint": "/ask-image"
+  },
+  {
+    "role": "assistant",
+    "content": "The query is about finding images of a cat.\n\nSimilarly, there also exist: a cat with green eyes; a cat sitting on a wooden bench; and a cat laying on a bed with its eyes closed.",
+    "timestamp": "2026-02-25T18:39:19.770591",
+    "endpoint": "/ask-image",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 98,
+      "critique": "The answer accurately states what the query is about and faithfully lists the 'similar' examples directly from the provided context."
     }
   }
 ]

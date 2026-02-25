@@ -28,6 +28,15 @@ class RAGEvaluator:
         try:
             resp = self._client.models.generate_content(model=self._model, contents=prompt)
             clean_json = resp.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(clean_json)
+            result = json.loads(clean_json)
+            if result.get("confidence_score", 100) < 70:
+                fix_prompt = (
+                    f"The following answer has low confidence. Rewrite it using ONLY the context below.\n\n"
+                    f"Context: {context_used}\nQuestion: {user_query}\nOriginal Answer: {generated_answer}\n\n"
+                    "Provide a corrected, faithful answer using ONLY the context."
+                )
+                fix_resp = self._client.models.generate_content(model=self._model, contents=fix_prompt)
+                result["fixed_answer"] = fix_resp.text.strip()
+            return result
         except Exception as e:
             return {"is_faithful": True, "confidence_score": 0, "critique": f"Eval failed: {e}"}

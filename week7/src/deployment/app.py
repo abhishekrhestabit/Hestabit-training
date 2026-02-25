@@ -86,8 +86,9 @@ class RAGEngine:
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask")
-        return answer, ev
+        final_answer = ev.get("fixed_answer", answer)
+        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask")
+        return final_answer, ev
 
     # ── /ask-sql ──────────────────────────────────────────
     def ask_sql(self, query: str):
@@ -110,29 +111,48 @@ class RAGEngine:
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-sql")
-        return answer, sql, results, ev
+        final_answer = ev.get("fixed_answer", answer)
+        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-sql")
+        return final_answer, sql, results, ev
 
     # ── /ask-image ────────────────────────────────────────
-    def ask_image_text(self, query: str, top_k: int = 3):
+    def ask_image(self, query: str, top_k: int = 3):
         t0 = time.time()
-        results = self.img_engine.search_by_text(query, top_k=top_k)
-        formatted = self._format_image_results(results)
-        context = "\n".join(r["metadata"]["caption"] for r in results)
-        ev = self.evaluator.evaluate_response(query, context, formatted)
-        self._trace("IMAGE-TEXT", f"{len(results)} results in {time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, formatted, metadata=ev, endpoint="/ask-image:text")
-        return results, formatted, ev
+        is_image = os.path.isfile(query)
 
-    def ask_image_image(self, image_path: str, top_k: int = 3):
-        t0 = time.time()
-        results = self.img_engine.search_by_image(image_path, top_k=top_k)
-        formatted = self._format_image_results(results)
-        context = "\n".join(r["metadata"]["caption"] for r in results)
-        ev = self.evaluator.evaluate_response(image_path, context, formatted)
-        self._trace("IMAGE-IMG", f"{len(results)} results in {time.time()-t0:.1f}s")
-        self.memory.add_interaction(f"[image:{image_path}]", formatted, metadata=ev, endpoint="/ask-image:image")
-        return results, formatted, ev
+        if is_image:
+            query_info = self.img_engine.extract_caption_ocr(query)
+            results = self.img_engine.search_by_image(query, top_k=top_k)
+            query_desc = query_info["caption"]
+            query_context = f"Given image caption: {query_info['caption']}\n"
+            if query_info["ocr"]:
+                query_context += f"Given image text/OCR: {query_info['ocr']}\n"
+        else:
+            results = self.img_engine.search_by_text(query, top_k=top_k)
+            query_desc = query
+            query_context = f"User query: {query}\n"
+
+        similar_parts = []
+        for r in results:
+            m = r["metadata"]
+            part = f"- {m['filename']} (caption: {m['caption']}" + (f", text: {m['ocr']}" if m.get('ocr') else "") + ")"
+            similar_parts.append(part)
+
+        prompt = (
+            query_context
+            + f"\nSimilar images found:\n" + "\n".join(similar_parts)
+            + "\n\nFirst, briefly describe what the query is about. "
+            "Then mention the similar images using a phrase like 'Similarly, there also exist...' "
+            "and describe each briefly."
+        )
+        answer = self._llm(prompt)
+        context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['caption'] for r in results)}"
+        ev = self.evaluator.evaluate_response(query, context, answer)
+        final_answer = ev.get("fixed_answer", answer)
+        mode = "image" if is_image else "text"
+        self._trace(f"IMAGE-{mode.upper()}", f"{len(results)} results in {time.time()-t0:.1f}s")
+        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-image")
+        return results, final_answer, ev
 
     def _format_image_results(self, results):
         lines = []
@@ -197,26 +217,13 @@ def main():
             print(f"\n{SEP}\nAnswer  :\n{answer}")
             print_eval(ev)
         elif cmd == "/ask-image":
-            mode = input("Mode (text / image): ").strip().lower()
-            if mode == "text":
-                query = input("Query: ").strip()
-                if not query:
-                    continue
-                _, formatted, ev = engine.ask_image_text(query)
-                print(f"\n{SEP}\nQuery   : {query}\n{SEP}")
-                print(f"Results :\n{formatted}")
-                print_eval(ev)
-            elif mode == "image":
-                path = input("Image path: ").strip()
-                if not path or not os.path.exists(path):
-                    print("Invalid path.")
-                    continue
-                _, formatted, ev = engine.ask_image_image(path)
-                print(f"\n{SEP}\nQuery   : {path}\n{SEP}")
-                print(f"Results :\n{formatted}")
-                print_eval(ev)
-            else:
-                print("Use 'text' or 'image'.")
+            query = input("Query (text or image path): ").strip()
+            if not query:
+                continue
+            _, answer, ev = engine.ask_image(query)
+            print(f"\n{SEP}\nQuery   : {query}\n{SEP}")
+            print(f"Answer  :\n{answer}")
+            print_eval(ev)
         elif cmd == "/feedback":
             try:
                 rating = int(input("Rating (1-5): ").strip())
