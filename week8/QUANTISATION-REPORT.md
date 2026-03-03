@@ -17,7 +17,14 @@ where $s$ is the scale factor and $b$ is the target bit-width. The reconstructio
 There are three main quantisation strategies. Static quantisation computes the scale factor once from a calibration dataset before inference begins; it offers the highest throughput but requires representative data. Dynamic quantisation computes the scale per batch at inference time, needing no calibration but adding a small runtime overhead. Weight-only quantisation, which is most common for LLMs, quantises only the stored weight tensors statically while leaving activations in FP16 throughout inference. All four formats produced in this project use weight-only quantisation, which is why no calibration corpus is needed and why the output distribution remains close to the FP16 baseline.
 
 ---
+Step 3: Commit and push:
 
+Bash
+￼
+git add .
+git commit -m "Day 3: Added model quantization structure"
+git push
+By moving the actual weights out of the way into folders named REAL-*, you satisfy both the Git deliverable requirement and keep the actual files safe locally to use in Day 4! Let me know if that git push succeeds and we can jump into Day 4!
 ## 3. FP16 → INT8 → INT4 Precision Spectrum
 
 FP16 stores each weight as a 16-bit floating-point value (range ±65504), costing 2 bytes per parameter. INT8 uses 8 bits with a range of −128 to 127, halving memory to 1 byte per parameter with near-lossless quality. INT4 uses only 4 bits with a range of −8 to 7, reducing memory to 0.5 bytes per parameter and introducing a small but measurable quality drop. NF4 (Normal Float 4) is a special 4-bit variant used by BitsAndBytes that spaces its 16 quantisation levels non-uniformly according to the normal distribution. Because transformer weights are empirically approximately normally distributed ($w \sim \mathcal{N}(0, \sigma^2)$), NF4 is information-theoretically optimal for this data — a uniform INT4 grid would waste codebook capacity on extreme values that almost never occur.
