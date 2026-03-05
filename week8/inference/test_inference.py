@@ -4,7 +4,7 @@ Run on Colab (T4 GPU) or locally with appropriate packages installed.
 Outputs: benchmarks/results.csv + console summary table.
 """
 
-import os, sys, time, csv, json
+import os, sys, time, csv, json, random
 import torch  # type: ignore
 import psutil  # type: ignore
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer  # type: ignore
@@ -34,18 +34,13 @@ def fmt_prompt(instruction, inp=""):
 
 
 def load_val_samples(n=5):
-    """Load n samples from val.jsonl with prompts and reference outputs."""
-    samples = []
-    with open(VAL_FILE) as f:
-        for i, line in enumerate(f):
-            if i >= n:
-                break
-            d = json.loads(line)
-            samples.append({
-                "prompt": fmt_prompt(d["instruction"], d.get("input", "")),
-                "reference": d["output"]
-            })
-    return samples
+    """Load n random samples from val.jsonl with prompts and reference outputs."""
+    all_lines = open(VAL_FILE).readlines()
+    selected = random.sample(all_lines, min(n, len(all_lines)))
+    return [
+        {"prompt": fmt_prompt(d["instruction"], d.get("input", "")), "reference": d["output"]}
+        for d in (json.loads(l) for l in selected)
+    ]
 
 
 def word_f1(pred, ref):
@@ -94,18 +89,21 @@ def hf_generate(model, tokenizer, prompt):
     return text, n_new, elapsed
 
 
-def hf_batch_generate(model, tokenizer, prompts):
-    """Batched generation. Returns (total_new_tokens, elapsed_s)."""
+def hf_batch_generate(model, tokenizer, samples):
+    """Batched generation. Returns (texts, total_new_tokens, elapsed_s)."""
     tokenizer.pad_token = tokenizer.eos_token
+    prompts = [s["prompt"] for s in samples]
     ids = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
+    input_len = ids["input_ids"].shape[1]
     sync_cuda()
     t0 = time.perf_counter()
     with torch.no_grad():
         out = model.generate(**ids, max_new_tokens=MAX_NEW_TOKENS, do_sample=False)
     sync_cuda()
     elapsed = time.perf_counter() - t0
-    total = sum(o.shape[0] - ids["input_ids"].shape[1] for o in out)
-    return total, elapsed
+    texts = [tokenizer.decode(o[input_len:], skip_special_tokens=True) for o in out]
+    total = sum(len(o) - input_len for o in out)
+    return texts, total, elapsed
 
 
 def hf_stream(model, tokenizer, prompt):
@@ -168,10 +166,11 @@ def bench_hf(name, model, tokenizer, samples):
         print(f"  [{n:3d} tok / {t:.2f}s / F1={f1:.2f}] {s['prompt'].split(chr(10))[1][:50]}...")
     rows.append(_row(name, "single", len(samples), toks, secs, f1_scores))
 
-    # Batch inference
-    bt, bs = hf_batch_generate(model, tokenizer, prompts)
-    print(f"  Batch: {bt} tokens in {bs:.2f}s ({bt/bs:.1f} tok/s)")
-    rows.append(_row(name, "batch", len(samples), bt, bs))
+    # Batch inference with accuracy
+    texts, bt, bs = hf_batch_generate(model, tokenizer, samples)
+    batch_f1 = [word_f1(t, s["reference"]) for t, s in zip(texts, samples)]
+    print(f"  Batch: {bt} tokens in {bs:.2f}s ({bt/bs:.1f} tok/s) avg F1={sum(batch_f1)/len(batch_f1):.2f}")
+    rows.append(_row(name, "batch", len(samples), bt, bs, batch_f1))
 
     # Streaming demo (first prompt)
     hf_stream(model, tokenizer, prompts[0])
