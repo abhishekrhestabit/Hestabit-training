@@ -22,7 +22,16 @@ Both HuggingFace and llama.cpp enable KV caching by default. During autoregressi
 
 ## 4. Batching
 
+HuggingFace `model.generate()` natively supports batched inputs when prompts are tokenized with `padding=True`. All 5 test prompts are batched into a single forward pass, amortizing the fixed overhead of model invocation. On CPU, padding overhead limits the benefit — batch throughput is actually lower than single-prompt mode (~3.6 vs ~5.5 tok/s) because padded sequences waste computation on pad tokens. On a GPU, batch mode would show the expected speedup through higher arithmet
+## 4. Batching
+
 HuggingFace `model.generate()` natively supports batched inputs when prompts are tokenized with `padding=True`. All 5 test prompts are batched into a single forward pass, amortizing the fixed overhead of model invocation. On CPU, padding overhead limits the benefit — batch throughput is actually lower than single-prompt mode (~3.6 vs ~5.5 tok/s) because padded sequences waste computation on pad tokens. On a GPU, batch mode would show the expected speedup through higher arithmetic intensity.
+
+Batch mode also computes word-overlap F1 per output and reports `avg_f1`, identical to single mode.
+
+llama.cpp (via llama-cpp-python) processes prompts sequentially; it does not support native batching in the Python binding's `__call__` interface.
+
+---ic intensity.
 
 Batch mode also computes word-overlap F1 per output and reports `avg_f1`, identical to single mode.
 

@@ -1,7 +1,5 @@
-model,mode,prompts,total_tokens,total_time_s,tokens_per_sec,avg_latency_s,vram_mb,ram_mb,avg_f1
-Base-FP16,single,5,540,98.16,5.5,19.63,0.0,2828.6,0.374
-Base-FP16,batch,5,640,177.93,3.6,35.59,0.0,2806.2,0.195
-FineTuned-FP16,single,5,640,105.91,6.04,21.18,0.0,2871.5,0.231
-FineTuned-FP16,batch,5,640,178.65,3.58,35.73,0.0,2874.6,0.206
-GGUF-Q8_0,single,5,637,38.26,16.65,7.65,0.0,3943.6,0.312
-GGUF-Q4_K_M,single,5,640,30.63,20.89,6.13,0.0,3863.1,0.249
+model,prompts,tokens_per_sec,avg_latency_s,vram_mb,ram_mb,cosine_similarity_%
+Base,162,5.09,17.92,0.0,4927.9,65.8
+FineTuned,162,4.71,27.03,0.0,4899.5,63.28
+GGUF-Q8_0,162,18.44,6.82,0.0,2158.4,64.57
+GGUF-Q4_K_M,162,15.55,8.23,0.0,2124.5,62.64
