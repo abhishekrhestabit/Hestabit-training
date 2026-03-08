@@ -61,8 +61,8 @@ def load_all_val_samples():
 
 
 def cosine_sim_pct(pred, ref):
-    embs = _embed().encode([pred, ref])
-    return float(np.clip(cos_sim([embs[0]], [embs[1]])[0][0], 0, 1)) * 100
+    embs = _embed().encode([pred, ref])  # shape (2, dim)
+    return float(np.clip(cos_sim(embs[0:1], embs[1:2])[0][0], 0, 1)) * 100
 
 
 def validate_training_data():
@@ -177,15 +177,15 @@ def main():
     # 1. Base model
     print("Loading base model...")
     tok = AutoTokenizer.from_pretrained(MODEL_NAME)
-    base = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=DTYPE).to(DEVICE)
+    base = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=DTYPE).to(DEVICE)  # type: ignore[union-attr]
     all_results += bench_hf("Base", base, tok, samples)
     del base; free_mem()
 
     # 2. Fine-tuned model (LoRA merged)
     if os.path.exists(ADAPTER_PATH):
         print("Loading fine-tuned model (LoRA merge)...")
-        base = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=DTYPE).to(DEVICE)
-        ft = PeftModel.from_pretrained(base, ADAPTER_PATH).merge_and_unload()
+        base = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=DTYPE).to(DEVICE)  # type: ignore[union-attr]
+        ft = PeftModel.from_pretrained(base, ADAPTER_PATH).merge_and_unload()  # type: ignore[union-attr]
         del base; free_mem()
         all_results += bench_hf("FineTuned", ft, tok, samples)
         del ft; free_mem()
