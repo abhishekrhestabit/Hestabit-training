@@ -11,59 +11,33 @@ ROOT_DIR = os.path.dirname(SCRIPT_DIR)
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 
 def main():
-    print("1. Downloading Free Dataset...")
-    # Dolly 15k is free and already has categories like QA, Extraction, and Brainstorming (Reasoning)
-    dataset = load_dataset("databricks/databricks-dolly-15k", split="train")
+    print("1. Downloading Asclepius Medical Dataset...")
+    # Load the full dataset so we can filter it properly
+    dataset = load_dataset("starmpcc/Asclepius-Synthetic-Clinical-Notes", split="train")
     df = dataset.to_pandas()
     assert isinstance(df, pd.DataFrame)
 
-    print("2. Filtering for Domain & Task Types...")
-    # Filter for QA, Reasoning (brainstorming), and Extraction
-    allowed_categories = ["open_qa", "closed_qa", "information_extraction", "brainstorming"]
-    df = df[df['category'].isin(allowed_categories)]
+    print("2. Filtering for QA, Reasoning, and Extraction...")
+    # Swapped to 'Relation Extraction' since it actually exists in Asclepius!
+    allowed_tasks = ["Question Answering", "Named Entity Recognition", "Relation Extraction"]
+    df = df[df['task'].isin(allowed_tasks)]
 
-    # Map Dolly categories to our required 3 types
-    def map_type(cat):
-        if "qa" in cat: return "QA"
-        if cat == "information_extraction": return "Extraction"
-        if cat == "brainstorming": return "Reasoning"
-    
-    df['type'] = df['category'].apply(map_type)
+    # Map the official task names to your required Day 1 types
+    def map_task(task_name):
+        if task_name == "Question Answering": return "QA"
+        if task_name == "Named Entity Recognition": return "Extraction"
+        if task_name == "Relation Extraction": return "Reasoning"
+        
+    df['type'] = df['task'].apply(map_task)
 
-    # Filter for Tech/Coding domain using keywords across all text columns
-    tech_keywords = [
-        'software', 'code', 'python', 'computer', 'data', 'algorithm', 'web', 'network',
-        'program', 'technology', 'tech', 'internet', 'database', 'server', 'api', 'function',
-        'system', 'application', 'app', 'developer', 'programming', 'engineer', 'digital',
-        'machine learning', 'artificial intelligence', 'model', 'neural', 'cloud', 'security',
-        'hardware', 'linux', 'windows', 'git', 'framework', 'library', 'class', 'variable',
-        'operating system', 'processor', 'memory', 'storage', 'binary', 'javascript', 'java',
-        'sql', 'html', 'css', 'pipeline', 'deploy', 'container', 'docker', 'kubernetes',
-        'encryption', 'firewall', 'bandwidth', 'protocol', 'compiler', 'debugging', 'runtime',
-        'microservice', 'machine', 'robot', 'automation', 'script', 'repository', 'version',
-        'CPU', 'GPU', 'RAM', 'virtual', 'device', 'mobile', 'open source', 'software engineer',
-        'file', 'directory', 'command', 'terminal', 'bash', 'shell', 'regex', 'parse', 'format',
-        'string', 'array', 'list', 'dictionary', 'object', 'method', 'interface', 'module',
-        'import', 'library', 'package', 'install', 'error', 'exception', 'debug', 'test',
-        'machine', 'compute', 'byte', 'bit', 'logic', 'sensor', 'chip', 'circuit', 'process'
-    ]
-    kw_pattern = '|'.join(tech_keywords)
-    mask = (
-        df['instruction'].str.contains(kw_pattern, case=False, na=False) |
-        df['context'].str.contains(kw_pattern, case=False, na=False) |
-        df['response'].str.contains(kw_pattern, case=False, na=False)
-    )
-    df = df[mask]
-
-    # Cap per type to keep the dataset balanced (up to 600 each = 1,800 before outlier removal)
+    # Balance the dataset (600 of each type = 1,800 total samples)
     df = df.groupby('type').head(600)
 
-    # Rename columns to match the required JSONL format
-    df = df[['instruction', 'context', 'response', 'type']]
+    # Map Asclepius columns to the exact Day 1 JSONL format requirements
+    df = df[['question', 'note', 'answer', 'type']]
     df.columns = ['instruction', 'input', 'output', 'type']
 
     print("3. Analyzing Token Lengths...")
-    # Use a fast, free local tokenizer (GPT-2 is lightweight and downloads instantly)
     tokenizer = AutoTokenizer.from_pretrained("gpt2")
     
     def get_token_length(row):
@@ -73,15 +47,14 @@ def main():
     df['token_length'] = df.apply(get_token_length, axis=1)
 
     print("4. Removing Outliers...")
-    # Keep samples between 20 and 512 tokens (covers most instruction samples without truncation)
     initial_count = len(df)
-    df = df[(df['token_length'] >= 20) & (df['token_length'] <= 512)]
+    df = df[(df['token_length'] >= 20) & (df['token_length'] <= 1024)]
     print(f"Removed {initial_count - len(df)} outliers. Total remaining: {len(df)}")
 
     print("5. Generating Distribution Graph...")
     plt.figure(figsize=(10, 6))
-    plt.hist(df['token_length'], bins=50, color='skyblue', edgecolor='black')
-    plt.title('Token Length Distribution (Cleaned Dataset)')
+    plt.hist(df['token_length'], bins=50, color='lightcoral', edgecolor='black')
+    plt.title('Token Length Distribution (Asclepius Medical Dataset)')
     plt.xlabel('Number of Tokens')
     plt.ylabel('Frequency')
     plt.grid(axis='y', alpha=0.75)
@@ -90,18 +63,17 @@ def main():
     print(f"Saved graph as {graph_path}")
 
     print("6. Splitting and Saving Deliverables...")
-    # Shuffle the dataset
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     
-    # 90% Train, 10% Validation
-    split_index = int(len(df) * 0.9)
+    # We will do an 85/15 split on our ~1,800 samples
+    split_index = int(len(df) * 0.85)
     train_df = df.iloc[:split_index]
     val_df = df.iloc[split_index:]
 
-    # Save to JSONL
+    # Save to JSONL keeping ONLY the three required keys
     def save_jsonl(dataframe, filepath):
         records = dataframe[['instruction', 'input', 'output']].to_dict(orient='records')
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             for record in records:
                 f.write(json.dumps(record) + '\n')
 

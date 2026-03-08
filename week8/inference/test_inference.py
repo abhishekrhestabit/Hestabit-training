@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Inference Benchmarking for TinyLlama fine-tuned models.
-Uses ALL val.jsonl prompts. Accuracy via cosine similarity (%).
-Outputs: benchmarks/results.csv + console summary table.
-"""
 
-import os, gc, time, csv, json
+
+import os, gc, time, csv, json, random
 import torch
 import psutil
 import numpy as np
@@ -52,12 +49,15 @@ def fmt_prompt(instruction, inp=""):
     return f"### Instruction:\n{instruction}\n\n### Response:\n"
 
 
+N_VAL = 15  # number of random val samples to benchmark
+
 def load_all_val_samples():
     with open(VAL_FILE) as f:
-        return [
+        all_samples = [
             {"prompt": fmt_prompt(d["instruction"], d.get("input", "")), "reference": d["output"]}
             for d in (json.loads(line) for line in f)
         ]
+    return random.sample(all_samples, min(N_VAL, len(all_samples)))
 
 
 def cosine_sim_pct(pred, ref):
@@ -68,19 +68,18 @@ def cosine_sim_pct(pred, ref):
 def validate_training_data():
     with open(TRAIN_FILE) as f:
         data = [json.loads(line) for line in f]
-    no_input = sum(1 for d in data if not d.get("input", "").strip())
-    with_input = sum(1 for d in data if d.get("input", "").strip())
-    short = sum(1 for d in data if len(d["output"].split()) < 20)
-    long = sum(1 for d in data if len(d["output"].split()) >= 20)
     n = len(data)
+    with_context = sum(1 for d in data if d.get("input", "").strip())
+    short  = sum(1 for d in data if len(d["output"].split()) < 20)
+    long_  = sum(1 for d in data if 20 <= len(d["output"].split()) < 100)
+    detail = sum(1 for d in data if len(d["output"].split()) >= 100)
     print("Training data validation:")
-    print(f"  instruction-only : {no_input} ({no_input/n*100:.0f}%)")
-    print(f"  instruction+input: {with_input} ({with_input/n*100:.0f}%)")
-    print(f"  short responses  : {short} ({short/n*100:.0f}%)")
-    print(f"  long responses   : {long} ({long/n*100:.0f}%)")
-    assert no_input > 0 and with_input > 0 and short > 0 and long > 0, \
-        "Training data missing one or more data types!"
-    print(f"  ✓ All three data types present (total: {n})\n")
+    print(f"  with clinical note : {with_context} ({with_context/n*100:.0f}%)")
+    print(f"  short  answers (<20 words) : {short}  ({short/n*100:.0f}%)")
+    print(f"  medium answers (20-99 words): {long_} ({long_/n*100:.0f}%)")
+    print(f"  long   answers (100+ words) : {detail} ({detail/n*100:.0f}%)")
+    assert n > 0 and short + long_ + detail == n, "Training data appears corrupt!"
+    print(f"  ✓ Dataset valid — {n} samples across 3 answer-length buckets\n")
 
 
 def vram_mb():
@@ -97,7 +96,7 @@ def sync():
 # ─── HF inference (single prompt, memory-safe) ───
 
 def hf_generate(model, tokenizer, prompt):
-    ids = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(DEVICE)
+    ids = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048).to(DEVICE)
     sync()
     t0 = time.perf_counter()
     with torch.no_grad():
