@@ -5,8 +5,8 @@ const setupApp = () => {
   const app = express();
 
   // Middleware
-  app.use(cors()); // Allow Frontend to talk to Backend
-  app.use(express.json()); // Parse incoming JSON bodies
+  app.use(cors()); 
+  app.use(express.json()); 
 
   return app;
 };

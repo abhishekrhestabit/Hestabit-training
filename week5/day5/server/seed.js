@@ -1,8 +1,8 @@
 const API_URL = 'http://localhost:5000/api/goals'; // Must match your Backend port
 
-// --- 1. CLEAN FUNCTION ---
+// 1. CLEAN FUNCTION 
 async function cleanDB() {
-  console.log("🧹 Cleaning old todos...");
+  console.log("Cleaning old todos...");
   try {
     const res = await fetch(API_URL);
     const todos = await res.json();
@@ -10,13 +10,13 @@ async function cleanDB() {
     for (const todo of todos) {
       await fetch(`${API_URL}/${todo._id}`, { method: 'DELETE' });
     }
-    console.log("✨ Database Cleared.\n");
+    console.log("Database Cleared.\n");
   } catch (err) {
-    console.error("⚠️ Cleaning failed (Is server running?):", err.message);
+    console.error("Cleaning failed (Is server running?):", err.message);
   }
 }
 
-// --- 2. CREATE HELPER ---
+// 2. CREATE HELPER 
 async function createTodo(title, deadline) {
   try {
     const res = await fetch(API_URL, {
@@ -28,17 +28,17 @@ async function createTodo(title, deadline) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message);
     
-    console.log(`✅ Created: "${title}"`);
+    console.log(`Created: "${title}"`);
     return data._id; 
   } catch (error) {
-    console.error(`❌ Failed: ${title} -`, error.message);
+    console.error(`Failed: ${title} -`, error.message);
   }
 }
 
-// --- 3. SEEDING LOGIC ---
+// 3. SEEDING LOGIC 
 async function seed() {
   await cleanDB();
-  console.log("🌱 Adding sample todos...\n");
+  console.log("Adding sample todos...\n");
 
   // Sample todos
   await createTodo("Complete project documentation", "2026-02-15");
@@ -52,7 +52,7 @@ async function seed() {
   await createTodo("Deploy staging environment", "2026-02-14");
   await createTodo("Create API documentation", "2026-02-22");
 
-  console.log("\n✨ Sample todos added successfully! Refresh your app.");
+  console.log("\nSample todos added successfully! Refresh your app.");
 }
 
 seed();
