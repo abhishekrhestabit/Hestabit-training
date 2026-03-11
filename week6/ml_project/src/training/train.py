@@ -46,16 +46,13 @@ class ModelTrainer:
                 selected_features = json.load(f)['selected_features']
                 self.X_train = self.X_train[selected_features]
                 self.X_test = self.X_test[selected_features]
-                print(f"✅ filtered to top {len(selected_features)} features.")
+                print(f"filtered to top {len(selected_features)} features.")
         except FileNotFoundError:
-            print("⚠️ No feature list found. Using all columns.")
+            print("No feature list found. Using all columns.")
 
     def train_and_evaluate(self):
-        """
-        Trains 4 models using 5-Fold Cross-Validation.
-        Returns: A dictionary of metrics.
-        """
-        print("🚀 Starting Cross-Validation Training...")
+
+        print("Starting Cross-Validation Training...")
         
         # 5-Fold Stratified CV (Ensures balanced classes in every fold)
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -76,7 +73,7 @@ class ModelTrainer:
                 'ROC_AUC': np.mean(scores['test_roc_auc'])
             }
             
-        print("✅ Training Complete.")
+        print("Training Complete.")
         return self.results
 
     def save_best_model(self):
@@ -87,7 +84,7 @@ class ModelTrainer:
         best_name = max(self.results, key=lambda x: self.results[x]['ROC_AUC'])
         best_score = self.results[best_name]['ROC_AUC']
         
-        print(f"🏆 BEST MODEL: {best_name} (ROC-AUC: {best_score:.4f})")
+        print(f"BEST MODEL: {best_name} (ROC-AUC: {best_score:.4f})")
         
         # Retrain best model on FULL training data
         best_model = self.models[best_name]
@@ -97,7 +94,7 @@ class ModelTrainer:
         model_path = f"{self.model_dir}/best_model.pkl"
         with open(model_path, 'wb') as f:
             pickle.dump(best_model, f)
-        print(f"💾 Saved model to {model_path}")
+        print(f"Saved model to {model_path}")
         
         return best_name, best_model
 
@@ -106,7 +103,7 @@ class ModelTrainer:
         metrics_path = f"{self.eval_dir}/metrics.json"
         with open(metrics_path, 'w') as f:
             json.dump(self.results, f, indent=4)
-        print(f"📊 Saved metrics to {metrics_path}")
+        print(f"Saved metrics to {metrics_path}")
 
     def plot_confusion_matrix(self, model, model_name):
         """Plots the Confusion Matrix for the Best Model on Test Data."""
@@ -121,7 +118,7 @@ class ModelTrainer:
         
         plot_path = f"{self.eval_dir}/confusion_matrix.png"
         plt.savefig(plot_path)
-        print(f"🖼️ Saved confusion matrix to {plot_path}")
+        print(f"Saved confusion matrix to {plot_path}")
 
 if __name__ == "__main__":
     # Define Paths

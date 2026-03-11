@@ -11,9 +11,9 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 try:
     X = pd.read_csv('src/data/features/X_train.csv')
     y = pd.read_csv('src/data/features/y_train.csv').values.ravel()
-    print(f"✅ Loaded training data: {X.shape}")
+    print(f"Loaded training data: {X.shape}")
 except FileNotFoundError:
-    print("❌ Data not found! Run src/features/build_features.py first.")
+    print("Data not found! Run src/features/build_features.py first.")
     exit()
 
 # Apply Feature Selection (Filter to the Chosen 11 or similar)
@@ -28,11 +28,11 @@ try:
         # Ensure we only keep columns that actually exist in X
         valid_features = [f for f in selected_features if f in X.columns]
         X = X[valid_features]
-        print(f"✅ Filtered to top {len(valid_features)} features.")
+        print(f"Filtered to top {len(valid_features)} features.")
     else:
-        print("⚠️ No feature list found. Using all columns.")
+        print("No feature list found. Using all columns.")
 except Exception as e:
-    print(f"⚠️ Warning loading features: {e}. Using all columns.")
+    print(f"Warning loading features: {e}. Using all columns.")
 
 # 2. Define Objective Function (The Experiment)
 def objective(trial):
@@ -61,11 +61,11 @@ def objective(trial):
     return scores.mean()
 
 # 3. Run Optimization
-print("🚀 Starting Optuna with Random Forest (5-Fold CV)...")
+print("Starting Optuna with Random Forest (5-Fold CV)...")
 study = optuna.create_study(direction='maximize')
 study.optimize(objective, n_trials=30)  # 30 trials is usually enough for RF
 
-print(f"\n✅ Optimization Complete!")
+print(f"\nOptimization Complete!")
 print(f"Best ROC-AUC: {study.best_value:.4f}")
 print(f"Best Parameters: {study.best_params}")
 
@@ -74,10 +74,10 @@ os.makedirs('src/tuning', exist_ok=True)
 with open('src/tuning/results.json', 'w') as f:
     json.dump(study.best_params, f, indent=4)
 
-print("✅ Best parameters saved to src/tuning/results.json")
+print("Best parameters saved to src/tuning/results.json")
 
 # 5. Retrain Final Model
-print("\n🔄 Retraining final model with best parameters...")
+print("\nRetraining final model with best parameters...")
 
 best_params = study.best_params
 # Add fixed params back in
@@ -94,4 +94,4 @@ os.makedirs('src/models', exist_ok=True)
 model_path = 'src/models/best_tuned_model.pkl'  # Overwrite best_model.pkl so API uses it
 joblib.dump(final_model, model_path)
 
-print(f"💾 Final model saved to {model_path}")
+print(f"Final model saved to {model_path}")

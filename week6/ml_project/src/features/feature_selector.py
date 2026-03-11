@@ -16,16 +16,16 @@ class FeatureSelector:
         try:
             self.X_train = pd.read_csv(f"{self.train_path}/X_train.csv")
             self.y_train = pd.read_csv(f"{self.train_path}/y_train.csv").values.ravel()
-            print(f"✅ Loaded Training Data. Total Features Available: {self.X_train.shape[1]}")
+            print(f"Loaded Training Data. Total Features Available: {self.X_train.shape[1]}")
         except FileNotFoundError:
-            print("❌ File not found. Run build_features.py first.")
+            print("File not found. Run build_features.py first.")
             exit()
 
     def select_features(self, n_features=11):
         """
         Selects the Top 11 Features.
         """
-        print(f"🔍 Starting RFE to find top {n_features} features...")
+        print(f"Starting RFE to find top {n_features} features...")
         
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         rfe = RFE(estimator=model, n_features_to_select=n_features)
@@ -33,14 +33,14 @@ class FeatureSelector:
 
         selected_cols = self.X_train.columns[rfe.support_].tolist()
         
-        print(f"✨ The Chosen 11: {selected_cols}")
+        print(f"The Chosen 11: {selected_cols}")
         return selected_cols, rfe
 
     def save_results(self, selected_cols):
         output_path = f"{self.output_dir}/feature_list.json"
         with open(output_path, 'w') as f:
             json.dump({"selected_features": selected_cols}, f, indent=4)
-        print(f"💾 Saved list to {output_path}")
+        print(f"Saved list to {output_path}")
 
     def plot_importance(self, rfe_model):
         selected_X = self.X_train.loc[:, rfe_model.support_]
@@ -55,7 +55,7 @@ class FeatureSelector:
         plt.xlabel("Importance Score")
         plt.tight_layout()
         plt.savefig(f"{self.output_dir}/feature_importance.png")
-        print("📊 Plot saved.")
+        print("Plot saved.")
 
 if __name__ == "__main__":
     TRAIN_DIR = "src/data/features"

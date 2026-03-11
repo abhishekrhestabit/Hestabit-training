@@ -11,18 +11,12 @@ class TitanicFeatureCreator(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         df = X.copy()
-        
+
         # Ensure numeric columns are actually numeric
         cols_to_numeric = ['Age', 'Fare', 'SibSp', 'Parch', 'Pclass']
         for col in cols_to_numeric:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        # Defaults
-        df['Fare'] = df['Fare'].fillna(14.45)
-        df['Age'] = df['Age'].fillna(28.0)
-        df['SibSp'] = df['SibSp'].fillna(0)
-        df['Parch'] = df['Parch'].fillna(0)
 
         # --- MATH LOGIC ---
         df['FamilySize'] = df['SibSp'] + df['Parch'] + 1
@@ -39,7 +33,6 @@ class TitanicFeatureCreator(BaseEstimator, TransformerMixin):
         df['Age_Sq'] = df['Age'] ** 2
         df['Fare_Sq'] = df['Fare_Log'] ** 2
         
-        # --- MANUAL ONE-HOT ENCODING (Safe & Complete) ---
         # 1. Sex
         df['Sex_male'] = (df['Sex'] == 'male').astype(int)
         

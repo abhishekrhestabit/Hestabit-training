@@ -11,7 +11,6 @@ class DataPipeline:
         self.raw_path = raw_path
         self.processed_path = processed_path
         self.data = None
-        # Ensure drop_cols is a list, defaulting to empty if None
         self.drop_cols = drop_cols if drop_cols else []
 
     def load_data(self):
@@ -35,7 +34,7 @@ class DataPipeline:
         # 1. Remove Duplicates (First pass to catch exact row duplicates)
         self.data.drop_duplicates(inplace=True)
         
-        # 2. Drop Unneeded Columns (GENERIC LOGIC)
+        # 2. Drop Unneeded Columns 
         # We use self.drop_cols which was passed during initialization
         if self.drop_cols:
             # Only drop columns that actually exist in the dataframe
@@ -79,8 +78,6 @@ if __name__ == "__main__":
     # CONFIGURATION
     RAW_FILE = "src/data/raw/dataset.csv" 
     PROCESSED_FILE = "src/data/processed/final.csv"
-    
-    # --- HERE IS WHERE YOU DEFINE THE SPECIFICS ---
     # Since we are using Titanic right now, we pass the Titanic specific cols here.
     TITANIC_DROP_COLS = ['PassengerId', 'Name', 'Ticket', 'Cabin']
 
