@@ -1,4 +1,7 @@
-import os, sys, yaml, time
+import os
+import sys
+import yaml
+import time
 import google.genai as genai
 from dotenv import load_dotenv
 
@@ -55,40 +58,87 @@ class RAGEngine:
     def _trace(self, tag, msg):
         print(f"  [{tag}] {msg}")
 
+    def _reformulate_query(self, query: str, history: str) -> str:
+        """Rewrites pronoun-heavy queries into standalone questions using chat history."""
+        if not history or history == "No previous conversation.":
+            return query
+            
+        prompt = f"""Given the chat history and the new user query, rewrite the query to be a standalone question. 
+Replace pronouns (it, that, them, this animal) with the actual subject from the history.
+If the query is already standalone, just return the exact original query.
+Return ONLY the rewritten query. No explanations.
+
+Chat History:
+{history}
+
+New Query: {query}
+Rewritten Query:"""
+        
+        return self._llm(prompt)
+
     # ── /ask ──────────────────────────────────────────────
     def ask(self, query: str):
         t0 = time.time()
-        history = self.memory.format_history_for_prompt()
-        self._trace("MEMORY", f"{len(self.memory.get_history())} msgs in context")
+        history_pairs = 5
+        history = self.memory.format_history_for_prompt(chat_pairs=history_pairs)
+        self._trace("MEMORY", "Loaded recent chat history")
 
-        context_str, docs = self.ctx_builder.build_context(query)
-        self._trace("RETRIEVAL", f"{len(docs)} chunks retrieved")
+        # 1. REFORMULATE THE QUERY
+        standalone_query = self._reformulate_query(query, history)
+        if standalone_query.lower() != query.lower():
+            self._trace("REWRITE", f"'{query}' → '{standalone_query}'")
+        else:
+            self._trace("REWRITE", "No rewrite needed")
 
-        prompt = (
-            "Use ONLY the context below to answer. If insufficient, say so.\n\n"
-            f"Chat History:\n{history}\n\nContext:\n{context_str}\n\n"
-            f"Question: {query}\nAnswer:"
-        )
+        # 2. SEARCH USING THE STANDALONE QUERY
+        context_str, docs = self.ctx_builder.build_context(standalone_query)
+        self._trace("RETRIEVAL", f"{len(docs)} chunks retrieved for '{standalone_query}'")
+
+        # 3. GENERATE THE ANSWER (WITH FALLBACK)
+        prompt = f"""You are an intelligent assistant. You have access to the recent CHAT HISTORY and a retrieved DATABASE CONTEXT.
+
+--- CHAT HISTORY ---
+{history}
+
+--- DATABASE CONTEXT ---
+{context_str}
+
+--- USER QUESTION ---
+{query} (Interpreted as: {standalone_query})
+
+INSTRUCTIONS:
+1. Identify the subject from the CHAT HISTORY (e.g., if the user says "that animal", look at the history to know they mean "cat").
+2. Try to answer the question using ONLY the DATABASE CONTEXT.
+3. DEBUGGING OVERRIDE: If the DATABASE CONTEXT contains zero relevant information about the subject, DO NOT just say "Insufficient." 
+4. Instead, explicitly state: "I see from our history you are asking about [Subject], but my database has no information on this. However, using my general knowledge..." and provide the answer using your own capabilities.
+"""
         answer = self._llm(prompt)
         self._trace("GENERATION", f"Answer generated ({len(answer)} chars)")
 
-        ev = self.evaluator.evaluate_response(query, context_str, answer)
+        eval_context = f"Chat History:\n{history}\n\nDatabase Context:\n{context_str}"
+        ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
         self._trace("EVAL", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
+        # 4. REFINEMENT (Relaxed for debugging)
         if not ev.get("is_faithful", True):
-            self._trace("REFINE", "Hallucination detected — refining...")
-            answer = self._llm(
-                f"Previous answer was unfaithful. Critique: {ev.get('critique')}\n\n"
-                f"Context:\n{context_str}\n\nQuestion: {query}\n"
-                "Provide a corrected answer using ONLY the context."
-            )
-            ev = self.evaluator.evaluate_response(query, context_str, answer)
-            self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
+            self._trace("REFINE", "Hallucination detected — checking if it's an authorized fallback...")
+            
+            if "general knowledge" in answer.lower() or "my database has no information" in answer.lower():
+                self._trace("REFINE", "Authorized general knowledge fallback detected. Bypassing refinement.")
+            else:
+                answer = self._llm(
+                    f"Previous answer was unfaithful. Critique: {ev.get('critique')}\n\n"
+                    f"Chat History:\n{history}\n\n"
+                    f"Database Context:\n{context_str}\n\nQuestion: {standalone_query}\n"
+                    "If the database lacks info, it is OK to use general knowledge AS LONG AS you explicitly warn the user with: 'Using my general knowledge...'. Provide the final answer."
+                )
+                ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
+                self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        final_answer = ev.get("fixed_answer", answer)
-        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask")
-        return final_answer, ev
+        # FIX: Directly use 'answer' instead of letting the evaluator overwrite it.
+        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask")
+        return answer, ev
 
     # ── /ask-sql ──────────────────────────────────────────
     def ask_sql(self, query: str):
@@ -111,11 +161,11 @@ class RAGEngine:
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        final_answer = ev.get("fixed_answer", answer)
-        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-sql")
-        return final_answer, sql, results, ev
+        # FIX: Directly use 'answer' 
+        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-sql")
+        return answer, sql, results, ev
 
-   # ── /ask-image ────────────────────────────────────────
+    # ── /ask-image ────────────────────────────────────────
     def ask_image(self, query: str, top_k: int = 3):
         t0 = time.time()
         is_image = os.path.isfile(query)
@@ -138,7 +188,6 @@ class RAGEngine:
             part = f"- {m['filename']} (caption: {m['caption']}" + (f", text: {m['ocr']}" if m.get('ocr') else "") + ")"
             similar_parts.append(part)
 
-        # --- THE UPGRADED PROMPT ---
         retrieved_images_text = "\n".join(similar_parts)
         prompt = f"""You are a helpful, expert visual search assistant. 
 Your goal is to answer the user's query and clearly explain the visually similar images we found in the database.
@@ -159,19 +208,17 @@ Your goal is to answer the user's query and clearly explain the visually similar
 
         answer = self._llm(prompt)
         
-        # Format the context strictly for the evaluator
         context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['filename'] + ': ' + r['metadata']['caption'] for r in results)}"
         
         ev = self.evaluator.evaluate_response(query, context, answer)
-        final_answer = ev.get("fixed_answer", answer)
         mode = "image" if is_image else "text"
         
         self._trace(f"IMAGE-{mode.upper()}", f"{len(results)} results in {time.time()-t0:.1f}s")
-        self.memory.add_interaction(query, final_answer, metadata=ev, endpoint="/ask-image")
+        # FIX: Directly use 'answer'
+        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-image")
         
-        return results, final_answer, ev
-    
-    
+        return results, answer, ev
+
     def _format_image_results(self, results):
         lines = []
         for i, r in enumerate(results, 1):

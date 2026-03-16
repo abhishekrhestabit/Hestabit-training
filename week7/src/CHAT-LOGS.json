@@ -1,88 +1,89 @@
 [
   {
     "role": "user",
-    "content": "cat",
-    "timestamp": "2026-02-25T18:57:09.233515",
-    "endpoint": "/ask-image"
+    "content": "give me a summary of what i asked before",
+    "timestamp": "2026-03-13T13:00:10.708148",
+    "endpoint": "/ask"
   },
   {
     "role": "assistant",
-    "content": "The query is about 'cat'.\nSimilar items include:\n- a cat with green eyes\n- a cat sitting on a wooden bench\n- a cat laying on a bed with its eyes closed",
-    "timestamp": "2026-02-25T18:57:09.233515",
-    "endpoint": "/ask-image",
+    "content": "Insufficient. The provided context only contains descriptions of images of the moon, not a summary of the moon itself.",
+    "timestamp": "2026-03-13T13:00:10.708148",
+    "endpoint": "/ask",
     "metadata": {
       "is_faithful": false,
-      "confidence_score": 60,
-      "critique": "The answer accurately identifies the query and lists the similar descriptions provided in the context, but it hallucinates image filenames that are not present in the factual context.",
-      "fixed_answer": "The query is about 'cat'.\nSimilar items include:\n- a cat with green eyes\n- a cat sitting on a wooden bench\n- a cat laying on a bed with its eyes closed"
+      "confidence_score": 0,
+      "critique": "The answer correctly states that the database has no information on the moon but then provides a summary using external knowledge, which is not supported by the provided factual context.",
+      "fixed_answer": "Insufficient. The provided context only contains descriptions of images of the moon, not a summary of the moon itself."
     }
   },
   {
     "role": "user",
-    "content": "cat",
-    "timestamp": "2026-02-25T18:59:42.421427",
+    "content": "moon",
+    "timestamp": "2026-03-13T13:07:13.007855",
     "endpoint": "/ask-image"
   },
   {
     "role": "assistant",
-    "content": "The query is about a cat. Similarly, there also exist a cat with green eyes (just_image_image12(7).jpeg.jpg), a cat sitting on a wooden bench (just_image_image14(7).jpeg.jpg), and a cat laying on a bed with its eyes closed (just_image_gettyimages-827755050-f4d5cb0f82b8e112b198b924c5b36311ddf3d92a.jpg.jpg).",
-    "timestamp": "2026-02-25T18:59:42.421427",
+    "content": "I found several images related to the moon for you!\n\nBased on your query, here are some visually similar images we retrieved from our database:\n\n*   One image features a large, striking moon set against a clear white background, emphasizing its detail. (just_image_FourPointPuzzlesTheMoon1transparentsquare.png.jpg)\n*   Another image shows a full moon prominently in the night sky, positioned above a city, specifically London. (just_image_full-moon.png.jpg)\n*   The third image captures a full moon illuminated in the sky, with the silhouettes of trees visible below it. (just_image_Full-Easter-Moon-736x490-c-default.jpg.jpg)",
+    "timestamp": "2026-03-13T13:07:13.007855",
     "endpoint": "/ask-image",
     "metadata": {
       "is_faithful": true,
       "confidence_score": 100,
-      "critique": "The answer completely and accurately extracts all information provided in the factual context about the query 'cat' and its similar items."
+      "critique": "The answer accurately and comprehensively describes all images related to the moon provided in the context, directly addressing the query."
     }
   },
   {
     "role": "user",
-    "content": "/home/abhishekrai/Training/week7/src/data/images/just_image_full-moon.png.jpg",
-    "timestamp": "2026-02-25T19:02:33.432425",
-    "endpoint": "/ask-image"
+    "content": "give me the sumaary of what i asked previously",
+    "timestamp": "2026-03-13T13:08:27.349255",
+    "endpoint": "/ask"
   },
   {
     "role": "assistant",
-    "content": "The query image depicts the moon in the sky above the city of London.\n\nSimilarly, there also exist one depicting the moon in the sky above the city of London (just_image_full-moon.png.jpg), another showing a full moon in the sky above trees (just_image_Full-Easter-Moon-736x490-c-default.jpg.jpg), and a third image presenting a large moon with a white background (just_image_FourPointPuzzlesTheMoon1transparentsquare.png.jpg).",
-    "timestamp": "2026-02-25T19:02:33.432425",
-    "endpoint": "/ask-image",
+    "content": "I see from our history you are asking about the moon, but my database has no information on this. However, using my general knowledge, I can tell you that the Moon is Earth's only natural satellite. It is the fifth largest moon in the Solar System and is a rocky body with a heavily cratered surface and no significant atmosphere. It plays a crucial role in Earth's tides and stabilizes our planet's axial tilt. It orbits Earth approximately every 27.3 days, leading to its familiar phases.",
+    "timestamp": "2026-03-13T13:08:27.349255",
+    "endpoint": "/ask",
     "metadata": {
-      "is_faithful": true,
-      "confidence_score": 100,
-      "critique": "The answer perfectly describes the query image and lists all similar images with their associated descriptions, using only the provided factual context."
+      "is_faithful": false,
+      "confidence_score": 0,
+      "critique": "The generated answer correctly identifies that the database has no information about the moon, but then provides a summary using outside knowledge not present in the given factual context.",
+      "fixed_answer": "Insufficient. The provided context only contains descriptions of images of the moon, not a summary of the moon itself."
     }
   },
   {
     "role": "user",
-    "content": "dog",
-    "timestamp": "2026-02-25T19:37:05.952859",
-    "endpoint": "/ask-image"
+    "content": "What is the name of the procedure where stockholders at the same address get only one copy of the proxy statement?",
+    "timestamp": "2026-03-13T13:22:20.126407",
+    "endpoint": "/ask"
   },
   {
     "role": "assistant",
-    "content": "Based on your query for \"dog,\" I've found some visually similar images that match your request.\n\nHere are the images we retrieved:\n\n*   This image shows a dog sitting in the grass with a leash, clearly depicting a dog as you requested. (just_image_image12(6).jpeg.jpg)\n*   Another relevant image features a white dog wearing a purple collar, directly matching your search for a dog. (just_image_image10(6).jpeg.jpg)\n*   This image displays two small blue dogs, providing more examples of dogs relevant to your query. (just_image_image14(6).jpeg.jpg)",
-    "timestamp": "2026-02-25T19:37:05.952859",
-    "endpoint": "/ask-image",
+    "content": "The procedure where stockholders at the same address get only one copy of the proxy statement is called \"householding\".",
+    "timestamp": "2026-03-13T13:22:20.126407",
+    "endpoint": "/ask",
     "metadata": {
       "is_faithful": true,
       "confidence_score": 100,
-      "critique": "The answer accurately and completely presents all the similar images described in the factual context, directly addressing the query 'dog'."
+      "critique": "The answer accurately identifies 'householding' as the procedure described, which is directly stated and explained in the provided context documents."
     }
   },
   {
     "role": "user",
-    "content": "/home/abhishekrai/Training/week7/src/data/images/just_image_image13.jpeg.jpg",
-    "timestamp": "2026-02-25T19:39:07.482241",
-    "endpoint": "/ask-image"
+    "content": "Why did the company adopt it?",
+    "timestamp": "2026-03-13T13:23:00.004860",
+    "endpoint": "/ask"
   },
   {
     "role": "assistant",
-    "content": "Based on your query for \"a puffy puffer bird with a blue beak,\" I've found some visually similar images in our database for you.\n\nHere are the images we retrieved:\n\n*   This image is an excellent match for your query, depicting a puffy puffer bird with a distinctive blue beak. It directly corresponds to the visual characteristics you described. (just_image_image13.jpeg.jpg)\n*   This image shows a bird perched on a branch. While it's relevant because it features a bird, it does not specifically highlight the \"puffy puffer\" characteristic or a \"blue beak\" as detailed in your query. (Bird.png)\n*   Similar to the previous result, this image also portrays a bird perched on a branch. It matches the general \"bird\" aspect of your query, but lacks the specific visual cues of being puffy or having a blue beak. (just_image_bird.png)",
-    "timestamp": "2026-02-25T19:39:07.482241",
-    "endpoint": "/ask-image",
+    "content": "I see from our history you are asking about householding, but my database has no information on why a company would adopt this practice. However, using my general knowledge, I can tell you that companies typically adopt householding primarily to reduce costs associated with printing and mailing multiple copies of proxy statements and other shareholder communications to stockholders who share the same address. This practice also helps reduce environmental impact by saving paper and energy.",
+    "timestamp": "2026-03-13T13:23:00.004860",
+    "endpoint": "/ask",
     "metadata": {
       "is_faithful": true,
-      "confidence_score": 100,
-      "critique": "The answer is completely supported by the factual context, accurately describing each image's relevance to the query without any extraneous information or hallucinations."
+      "confidence_score": 0,
+      "critique": "Eval failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 58.217264465s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '58s'}]}}"
     }
   }
 ]

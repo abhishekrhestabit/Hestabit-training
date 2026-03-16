@@ -14,7 +14,6 @@ class HybridRetriever:
     def __init__(self, top_k=5):
         self.top_k = top_k
         self.embeddings = Embedder().get_embeddings()
-        self.faiss_db = self._load_faiss_db()
         self.bm25_retriever = self._build_bm25()
         self.semantic_retriever = self.faiss_db.as_retriever(
             search_type="mmr",

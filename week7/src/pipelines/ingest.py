@@ -1,17 +1,15 @@
 import os
 import sys
 
-# Add week7/ to path so 'src.*' imports work
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(os.path.dirname(current_dir)))  # Points to week7/
-
+sys.path.append(os.path.dirname(os.path.dirname(current_dir))) 
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader, TextLoader, Docx2txtLoader, CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from src.embeddings.embedder import Embedder
 
-# --- CONFIGURATION ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # week7/src/
+# CONFIGURATION 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  
 DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 CHUNKS_PATH = os.path.join(BASE_DIR, "data", "chunks")
 DB_PATH = os.path.join(BASE_DIR, "vectorstore", "db_faiss")
@@ -19,11 +17,11 @@ DB_PATH = os.path.join(BASE_DIR, "vectorstore", "db_faiss")
 
 def load_documents():
     """Step 1: Load PDFs, TXT, DOCX, and CSV files with metadata."""
-    print(f"📂 Scanning {DATA_PATH} for documents...")
+    print(f" Scanning {DATA_PATH} for documents...")
 
     if not os.path.exists(DATA_PATH):
         os.makedirs(DATA_PATH)
-        print(f"⚠️  Created {DATA_PATH}. Please put your files there!")
+        print(f" Created {DATA_PATH}. Please put your files there!")
         return []
 
     documents = []
@@ -56,7 +54,7 @@ def load_documents():
         print(f"   - Found {len(docx_docs)} DOCX documents")
         documents.extend(docx_docs)
     except Exception as e:
-        print(f"⚠️  Could not load DOCX files: {e}")
+        print(f" Could not load DOCX files: {e}")
 
     # 4. Load CSV Files
     try:
@@ -68,13 +66,13 @@ def load_documents():
         print(f"   - Found {len(csv_docs)} CSV rows")
         documents.extend(csv_docs)
     except Exception as e:
-        print(f"⚠️  Could not load CSV files: {e}")
+        print(f" Could not load CSV files: {e}")
 
     if not documents:
-        print("⚠️  No documents found.")
+        print(" No documents found.")
         return []
 
-    print(f"✅ Total Loaded: {len(documents)} document chunks/pages.")
+    print(f"Total Loaded: {len(documents)} document chunks/pages.")
     return documents
 
 
@@ -100,8 +98,8 @@ def split_text(documents):
             f.write(f"Start Index: {chunk.metadata.get('start_index', 'N/A')}\n")
             f.write(f"Content:\n{chunk.page_content}\n\n")
 
-    print(f"✂️  Split into {len(chunks)} chunks.")
-    print(f"📝 Chunk preview saved to {chunks_file}")
+    print(f" Split into {len(chunks)} chunks.")
+    print(f"Chunk preview saved to {chunks_file}")
     return chunks
 
 
@@ -110,14 +108,14 @@ def save_vector_db(chunks):
     if not chunks:
         return
 
-    print("⚙️  Generating embeddings (local model)...")
+    print(" Generating embeddings (local model)...")
     embedder = Embedder()
     embeddings = embedder.get_embeddings()
 
-    db = FAISS.from_documents(chunks, embeddings)
+    db = FAISS.from_documents(chunks, embeddings) # index-flat l2 by default, which is exact search.You can also use index Ip.For larger datasets, consider 'hnsw' or 'ivf' for approximate search.
     os.makedirs(DB_PATH, exist_ok=True)
     db.save_local(DB_PATH)
-    print(f"💾 Saved FAISS index to {DB_PATH}")
+    print(f"Saved FAISS index to {DB_PATH}")
 
 
 if __name__ == "__main__":
@@ -125,4 +123,4 @@ if __name__ == "__main__":
     if docs:
         chunks = split_text(docs)
         save_vector_db(chunks)
-        print("\n✅ Day 1 Ingestion Pipeline Complete!")
+        print("\n Day 1 Ingestion Pipeline Complete!")
