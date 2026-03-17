@@ -88,16 +88,14 @@ README.md          — Usage documentation
 ## How to Run
 
 ```bash
-# Local
 cd deploy && pip install -r requirements.txt && python app.py
 
-# Docker
 docker build -t tinyllama-api . && docker run -p 8000:8000 tinyllama-api
 
-# CLI chat
 cd deploy && python app.py --cli
 ```
 
 ## Conclusion
 
 The pipeline demonstrates a complete local LLM workflow: from dataset preparation through QLoRA fine-tuning, multi-format quantisation, systematic benchmarking, to production-ready API deployment. The GGUF Q4_K_M model provides an excellent balance of size (~637 MB) and quality for local microservice use, running efficiently on CPU without GPU requirements.
+        return embeddings.squeeze().cpu().numpy().tolist()

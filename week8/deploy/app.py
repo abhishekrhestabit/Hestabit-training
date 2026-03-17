@@ -36,7 +36,9 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
+    messages: list[ChatMessage] = Field(default_factory=list)
+    session_id: str | None = None
+    reset_history: bool = False
     system: str = "You are a helpful assistant."
     max_tokens: int = Field(default=MAX_TOKENS, ge=1, le=2048)
     temperature: float = Field(default=DEFAULT_TEMPERATURE, ge=0.0, le=2.0)
@@ -52,6 +54,7 @@ class GenerateResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     request_id: str
+    session_id: str | None = None
     role: str = "assistant"
     content: str
     tokens: int
@@ -61,6 +64,16 @@ class ChatResponse(BaseModel):
 # ─── Helpers ───
 
 STOP_SEQS = ["### Instruction:", "### System:", "### Input:", "\nYou:", "\nUser:"]
+MAX_HISTORY_TURNS = 10  # keep last 10 user+assistant pairs (20 messages)
+chat_histories: dict[str, list[dict[str, str]]] = {}
+
+
+def _trim_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Trim chat history to the same turn limit used by CLI mode."""
+    max_messages = MAX_HISTORY_TURNS * 2
+    if len(history) > max_messages:
+        return history[-max_messages:]
+    return history
 
 def _generate(prompt: str, max_tokens: int, temperature: float, top_p: float, top_k: int):
     """Run non-streaming generation."""
@@ -73,12 +86,20 @@ def _generate(prompt: str, max_tokens: int, temperature: float, top_p: float, to
     return text, tokens, elapsed
 
 
-def _stream(prompt: str, max_tokens: int, temperature: float, top_p: float, top_k: int):
+def _stream(prompt: str, max_tokens: int, temperature: float, top_p: float, top_k: int, session_id: str | None = None):
     """Yield SSE chunks for streaming generation."""
     model = get_model()
+    collected: list[str] = []
     for chunk in model(prompt, max_tokens=max_tokens, temperature=temperature, top_p=top_p, top_k=top_k, echo=False, stream=True, stop=STOP_SEQS):
         token = chunk["choices"][0]["text"]  # type: ignore[index]
+        collected.append(token)
         yield f"data: {json.dumps({'token': token})}\n\n"
+
+    if session_id:
+        history = chat_histories.get(session_id, [])
+        history.append({"role": "assistant", "content": "".join(collected).strip()})
+        chat_histories[session_id] = _trim_history(history)
+
     yield "data: [DONE]\n\n"
 
 
@@ -101,18 +122,47 @@ async def generate(req: GenerateRequest):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
-    """Multi-turn chat with system prompt and infinite conversation history."""
+    """Multi-turn chat with optional server-side history by session_id."""
     rid = str(uuid.uuid4())[:8]
-    messages = [{"role": m.role, "content": m.content} for m in req.messages]
+    incoming = [{"role": m.role, "content": m.content} for m in req.messages]
+
+    if req.session_id:
+        if req.reset_history or req.session_id not in chat_histories:
+            chat_histories[req.session_id] = []
+        history = chat_histories[req.session_id]
+
+        if incoming:
+            # A single user message follows the same incremental pattern as CLI chat.
+            if len(incoming) == 1 and incoming[0].get("role") == "user":
+                history.append(incoming[0])
+            else:
+                # If client sends full history, replace and trim server-side copy.
+                history = incoming
+            chat_histories[req.session_id] = _trim_history(history)
+
+        messages = chat_histories[req.session_id]
+    else:
+        if not incoming:
+            raise HTTPException(status_code=400, detail="Provide at least one message or use session_id with history.")
+        messages = _trim_history(incoming)
+
     prompt = format_chat(messages, req.system)
-    logger.info(f"[{rid}] /chat turns={len(messages)} prompt_len={len(prompt)} stream={req.stream}")
+    logger.info(
+        f"[{rid}] /chat turns={len(messages)} prompt_len={len(prompt)} stream={req.stream} session_id={req.session_id}"
+    )
 
     if req.stream:
-        return StreamingResponse(_stream(prompt, req.max_tokens, req.temperature, req.top_p, req.top_k),
+        return StreamingResponse(_stream(prompt, req.max_tokens, req.temperature, req.top_p, req.top_k, req.session_id),
                                  media_type="text/event-stream")
     text, tokens, elapsed = _generate(prompt, req.max_tokens, req.temperature, req.top_p, req.top_k)
+
+    if req.session_id:
+        history = chat_histories.get(req.session_id, [])
+        history.append({"role": "assistant", "content": text})
+        chat_histories[req.session_id] = _trim_history(history)
+
     logger.info(f"[{rid}] completed tokens={tokens} time={elapsed:.2f}s")
-    return ChatResponse(request_id=rid, content=text, tokens=tokens, time_s=round(elapsed, 3))
+    return ChatResponse(request_id=rid, session_id=req.session_id, content=text, tokens=tokens, time_s=round(elapsed, 3))
 
 
 @app.get("/")
@@ -137,6 +187,9 @@ def cli_chat():
         if user_input.lower() in ("quit", "exit"):
             break
         history.append({"role": "user", "content": user_input})
+
+        history = _trim_history(history)
+
         prompt = format_chat(history, system)
 
         print("Bot: ", end="", flush=True)
@@ -147,6 +200,7 @@ def cli_chat():
             full_response.append(token)
         print()
         history.append({"role": "assistant", "content": "".join(full_response).strip()})
+        history = _trim_history(history)
 
 
 if __name__ == "__main__":

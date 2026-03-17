@@ -38,7 +38,7 @@ def main():
     df.columns = ['instruction', 'input', 'output', 'type']
 
     print("3. Analyzing Token Lengths...")
-    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     
     def get_token_length(row):
         text = f"{row['instruction']} {row['input']} {row['output']}"
@@ -81,7 +81,7 @@ def main():
     save_jsonl(train_df, os.path.join(DATA_DIR, 'train.jsonl'))
     save_jsonl(val_df, os.path.join(DATA_DIR, 'val.jsonl'))
 
-    print(f"✅ Success! Saved {len(train_df)} train and {len(val_df)} val samples.")
+    print(f"Success! Saved {len(train_df)} train and {len(val_df)} val samples.")
 
 if __name__ == "__main__":
     main()

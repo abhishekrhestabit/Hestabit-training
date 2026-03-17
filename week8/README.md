@@ -9,7 +9,8 @@ adapters/          QLoRA adapter weights (LoRA r=16, α=32)
 benchmarks/        Inference benchmark results
 data/              Training & validation JSONL
 deploy/            FastAPI inference server (Day 5 capstone)
-  app.py           API server with /generate, /chat, CLI mode
+  app.py           API server with /generate and /chat
+  streamlit_app.py Streamlit chat UI with rolling history
   model_loader.py  Singleton model loader with prompt formatting
   config.py        Environment-configurable settings
   requirements.txt Python dependencies
@@ -29,8 +30,8 @@ pip install -r requirements.txt
 # Start API server
 python app.py
 
-# Or interactive CLI chat
-python app.py --cli
+# Or Streamlit chat UI
+streamlit run streamlit_app.py
 ```
 
 ## API Endpoints
@@ -45,15 +46,22 @@ curl -X POST http://localhost:8000/generate \
 
 ### POST /chat
 Multi-turn chat with system prompt and conversation history.
+
+Use session-based history for CLI-like behavior by sending a single user message each call with the same `session_id`.
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{
+    "session_id": "demo-session-1",
     "messages": [{"role": "user", "content": "What is machine learning?"}],
     "system": "You are a helpful AI tutor.",
     "temperature": 0.7
   }'
 ```
+
+Optional chat fields:
+- `session_id`: Persist and reuse server-side history across calls.
+- `reset_history`: Clear server-side history for that session before processing.
 
 ### Streaming
 Set `"stream": true` in either endpoint to get SSE token-by-token output.
