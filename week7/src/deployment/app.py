@@ -23,15 +23,13 @@ LOGS_PATH = os.path.join(BASE_DIR, "CHAT-LOGS.json")
 
 class RAGEngine:
     def __init__(self):
-        cfg = yaml.safe_load(open(CONFIG_PATH))
-        api_key = os.environ.get(cfg["api_key_env"], "")
-        self._client = genai.Client(api_key=api_key)
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        self._client = genai.Client(api_key=os.environ.get(cfg["api_key_env"], ""))
         self._model = cfg["model_name"]
         self.memory = MemoryStore(filepath=LOGS_PATH)
         self.evaluator = RAGEvaluator(config_path=CONFIG_PATH)
-        self._ctx_builder = None
-        self._sql_pipeline = None
-        self._img_engine = None
+        self._ctx_builder = self._sql_pipeline = self._img_engine = None
 
     @property
     def ctx_builder(self):
@@ -61,43 +59,31 @@ class RAGEngine:
         print(f"  [{tag}] {msg}")
 
     def _reformulate_query(self, query: str, history: str) -> str:
-        """Rewrites pronoun-heavy queries into standalone questions using chat history."""
         if not history or history == "No previous conversation.":
             return query
-            
-        prompt = f"""Given the chat history and the new user query, rewrite the query to be a standalone question. 
-Replace pronouns (it, that, them, this animal) with the actual subject from the history.
-If the query is already standalone, just return the exact original query.
-Return ONLY the rewritten query. No explanations.
+        prompt = f"""Rewrite the query as a standalone question using the chat history.
+Replace pronouns (it, that, them, this animal) with the actual subject from history.
+If already standalone, return the original query exactly.
+Return ONLY the rewritten query.
 
 Chat History:
 {history}
 
 New Query: {query}
 Rewritten Query:"""
-        
         return self._llm(prompt)
 
     # ── /ask ──────────────────────────────────────────────
     def ask(self, query: str):
         t0 = time.time()
-        history_pairs = 5
-        history = self.memory.format_history_for_prompt(chat_pairs=history_pairs)
-        self._trace("MEMORY", "Loaded recent chat history")
-
-        # 1. REFORMULATE THE QUERY
+        history = self.memory.format_history_for_prompt(chat_pairs=5)
         standalone_query = self._reformulate_query(query, history)
-        if standalone_query.lower() != query.lower():
-            self._trace("REWRITE", f"'{query}' → '{standalone_query}'")
-        else:
-            self._trace("REWRITE", "No rewrite needed")
+        self._trace("REWRITE", f"'{query}' → '{standalone_query}'" if standalone_query.lower() != query.lower() else "No rewrite needed")
 
-        # 2. SEARCH USING THE STANDALONE QUERY
         context_str, docs = self.ctx_builder.build_context(standalone_query)
         self._trace("RETRIEVAL", f"{len(docs)} chunks retrieved for '{standalone_query}'")
 
-        # 3. GENERATE THE ANSWER (WITH FALLBACK)
-        prompt = f"""You are an intelligent assistant. You have access to the recent CHAT HISTORY and a retrieved DATABASE CONTEXT.
+        prompt = f"""You are an intelligent assistant with access to chat history and a retrieved database context.
 
 --- CHAT HISTORY ---
 {history}
@@ -109,10 +95,9 @@ Rewritten Query:"""
 {query} (Interpreted as: {standalone_query})
 
 INSTRUCTIONS:
-1. Identify the subject from the CHAT HISTORY (e.g., if the user says "that animal", look at the history to know they mean "cat").
-2. Try to answer the question using ONLY the DATABASE CONTEXT.
-3. DEBUGGING OVERRIDE: If the DATABASE CONTEXT contains zero relevant information about the subject, DO NOT just say "Insufficient." 
-4. Instead, explicitly state: "I see from our history you are asking about [Subject], but my database has no information on this. However, using my general knowledge..." and provide the answer using your own capabilities.
+1. Identify the subject from CHAT HISTORY if the query uses pronouns.
+2. Answer using ONLY the DATABASE CONTEXT if possible.
+3. If the database has no relevant info, explicitly say: "I see from our history you are asking about [Subject], but my database has no information on this. However, using my general knowledge..." and answer using general knowledge.
 """
         answer = self._llm(prompt)
         self._trace("GENERATION", f"Answer generated ({len(answer)} chars)")
@@ -121,24 +106,20 @@ INSTRUCTIONS:
         ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
         self._trace("EVAL", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
-        # 4. REFINEMENT (Relaxed for debugging)
         if not ev.get("is_faithful", True):
-            self._trace("REFINE", "Hallucination detected — checking if it's an authorized fallback...")
-            
-            if "general knowledge" in answer.lower() or "my database has no information" in answer.lower():
-                self._trace("REFINE", "Authorized general knowledge fallback detected. Bypassing refinement.")
-            else:
+            if "general knowledge" not in answer.lower() and "my database has no information" not in answer.lower():
+                self._trace("REFINE", "Hallucination detected — refining...")
                 answer = self._llm(
                     f"Previous answer was unfaithful. Critique: {ev.get('critique')}\n\n"
-                    f"Chat History:\n{history}\n\n"
-                    f"Database Context:\n{context_str}\n\nQuestion: {standalone_query}\n"
-                    "If the database lacks info, it is OK to use general knowledge AS LONG AS you explicitly warn the user with: 'Using my general knowledge...'. Provide the final answer."
+                    f"Chat History:\n{history}\n\nDatabase Context:\n{context_str}\n\nQuestion: {standalone_query}\n"
+                    "If the database lacks info, use general knowledge but warn: 'Using my general knowledge...'. Provide the final answer."
                 )
                 ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
                 self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
+            else:
+                self._trace("REFINE", "Authorized general knowledge fallback. Bypassing refinement.")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        # FIX: Directly use 'answer' instead of letting the evaluator overwrite it.
         self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask")
         return answer, ev
 
@@ -157,83 +138,87 @@ INSTRUCTIONS:
 
         if not ev.get("is_faithful", True):
             self._trace("REFINE", "Hallucination detected — re-running strict...")
-            strict = contextualized + "\nCRITICAL: Answer strictly from database. No hallucination."
-            answer, sql, results = self.sql_pipeline.run(strict, display_query=query)
+            answer, sql, results = self.sql_pipeline.run(
+                contextualized + "\nCRITICAL: Answer strictly from database. No hallucination.",
+                display_query=query
+            )
             ev = self.evaluator.evaluate_response(query, context_used, answer)
             self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
-        # FIX: Directly use 'answer' 
         self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-sql")
         return answer, sql, results, ev
 
     # ── /ask-image ────────────────────────────────────────
-    def ask_image(self, query: str, top_k: int = 3):
+    def ask_image(self, query: str, top_k: int = 3, user_query: str = None):
         t0 = time.time()
         is_image = os.path.isfile(query)
+        history = self.memory.format_history_for_prompt(chat_pairs=5)
 
         if is_image:
             query_info = self.img_engine.extract_caption_ocr(query)
             results = self.img_engine.search_by_image(query, top_k=top_k)
-            query_desc = query_info["caption"]
-            query_context = f"Given image caption: {query_info['caption']}\n"
+            normalized_user_query = (user_query or "").strip()
+            standalone_query = self._reformulate_query(normalized_user_query, history) if normalized_user_query else query_info["caption"]
+            context_lines = []
+            if normalized_user_query:
+                context_lines += [f"User question: {normalized_user_query}", f"Interpreted question: {standalone_query}"]
+            context_lines.append(f"Given image caption: {query_info['caption']}")
             if query_info["ocr"]:
-                query_context += f"Given image text/OCR: {query_info['ocr']}\n"
+                context_lines.append(f"Given image text/OCR: {query_info['ocr']}")
+            query_context = "\n".join(context_lines)
         else:
             results = self.img_engine.search_by_text(query, top_k=top_k)
-            query_desc = query
-            query_context = f"User query: {query}\n"
+            standalone_query = self._reformulate_query(query, history)
+            query_context = f"User query: {query}\nInterpreted query using history: {standalone_query}\n"
 
-        similar_parts = []
-        for r in results:
-            m = r["metadata"]
-            part = f"- {m['filename']} (caption: {m['caption']}" + (f", text: {m['ocr']}" if m.get('ocr') else "") + ")"
-            similar_parts.append(part)
+        retrieved_images_text = "\n".join(
+            f"- filename: {r['metadata']['filename']}, similarity_score: {float(r.get('score', 0)):.4f}, "
+            f"caption: {r['metadata'].get('caption', '')}"
+            + (f", ocr: {r['metadata'].get('ocr', '')}" if r['metadata'].get('ocr') else "")
+            for r in results
+        )
 
-        retrieved_images_text = "\n".join(similar_parts)
-        prompt = f"""You are a helpful, expert visual search assistant. 
-Your goal is to answer the user's query and clearly explain the visually similar images we found in the database.
+        prompt = f"""You are an expert visual assistant with broad knowledge across all domains — nature, objects, people, places, art, technology, food, and more.
 
---- USER QUERY ---
+--- CHAT HISTORY ---
+{history}
+
+--- USER + IMAGE CONTEXT ---
 {query_context}
 
---- RETRIEVED IMAGES FROM DATABASE ---
+--- RETRIEVED IMAGES ---
 {retrieved_images_text}
 
---- INSTRUCTIONS ---
-1. Opening: Start with a brief, natural summary directly addressing the user's query.
-2. The Handoff: Smoothly transition to mentioning the similar images we retrieved.
-3. The Breakdown: Describe each retrieved image concisely. Highlight why it is relevant to the query.
-4. The Reference: You MUST include the exact filename for every image you mention, wrapped in parentheses at the end of its description (e.g., (diagram_v2.png)).
-5. Formatting: Use bullet points when listing the similar images so it is easy for the user to scan. 
-"""
+TASK: Answer the user's query: "{standalone_query}"
 
+RULES:
+1. Identify the subject from the caption, OCR, and retrieved metadata. It could be anything — an animal, a product, a landmark, a person, a document, a scene, etc.
+2. Use the retrieved metadata as your anchor, then EXPAND using your own expert knowledge about that subject.
+3. Shape your response to match exactly what the user asked:
+   - Detailed question → thorough explanation with relevant facts, context, and characteristics
+   - Summary request → concise overview
+   - Comparison → compare the retrieved items meaningfully on relevant dimensions
+   - Identification → name/classify the subject and explain what it is
+   - Any other intent → respond naturally in the way that best fits the question
+4. Be conversational and informative — not robotic or templated.
+5. Vary your structure freely (paragraphs, bullets, short or long) to best fit the query.
+6. Only say "I don't have enough information" if the subject is truly unidentifiable from all available evidence.
+
+Write your response now, then end with exactly this line on its own:
+Here are some similar images:
+"""
         answer = self._llm(prompt)
-        
-        context = f"Query: {query_desc}\nSimilar: {', '.join(r['metadata']['filename'] + ': ' + r['metadata']['caption'] for r in results)}"
-        
-        ev = self.evaluator.evaluate_response(query, context, answer)
-        mode = "image" if is_image else "text"
-        
-        self._trace(f"IMAGE-{mode.upper()}", f"{len(results)} results in {time.time()-t0:.1f}s")
-        # FIX: Directly use 'answer'
-        self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask-image")
-        
+
+        context = f"Query: {standalone_query}\nSimilar: {', '.join(r['metadata']['filename'] + ': ' + r['metadata']['caption'] for r in results)}"
+        ev = self.evaluator.evaluate_response(standalone_query, context, answer)
+
+        self._trace(f"IMAGE-{'IMAGE' if is_image else 'TEXT'}", f"{len(results)} results in {time.time()-t0:.1f}s")
+        self.memory.add_interaction(standalone_query, answer, metadata=ev, endpoint="/ask-image")
         return results, answer, ev
 
-    def _format_image_results(self, results):
-        lines = []
-        for i, r in enumerate(results, 1):
-            m = r["metadata"]
-            confidence = round(r["score"] * 100, 1)
-            lines.append(
-                f"  {i}. {m['filename']}\n"
-                f"     Path      : {m['filepath']}\n"
-                f"     Confidence: {confidence}%\n"
-                f"     Caption   : {m['caption']}"
-            )
-        return "\n".join(lines)
 
+# ── Streamlit helpers ─────────────────────────────────────
 
 def _get_engine():
     if "engine" not in st.session_state:
@@ -241,15 +226,13 @@ def _get_engine():
     return st.session_state.engine
 
 
+def _format_eval_caption(ev: dict) -> str:
+    return f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%"
+
+
 def _init_state():
-    if "selected_endpoint" not in st.session_state:
-        st.session_state.selected_endpoint = "/ask"
-    if "ui_messages" not in st.session_state:
-        st.session_state.ui_messages = {
-            "/ask": [],
-            "/ask-sql": [],
-            "/ask-image": [],
-        }
+    st.session_state.setdefault("selected_endpoint", "/ask")
+    st.session_state.setdefault("ui_messages", {"/ask": [], "/ask-sql": [], "/ask-image": []})
 
 
 def _render_messages(endpoint):
@@ -266,21 +249,12 @@ def _render_messages(endpoint):
                     st.caption("Result preview")
                     st.write(msg["results"])
             if msg.get("eval"):
-                ev = msg["eval"]
-                st.caption(
-                    f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%"
-                )
+                st.caption(_format_eval_caption(msg["eval"]))
 
 
 def _append_message(endpoint, role, content, sql=None, results=None, ev=None):
     st.session_state.ui_messages[endpoint].append(
-        {
-            "role": role,
-            "content": content,
-            "sql": sql,
-            "results": results,
-            "eval": ev,
-        }
+        {"role": role, "content": content, "sql": sql, "results": results, "eval": ev}
     )
 
 
@@ -288,22 +262,15 @@ def _get_image_path(meta):
     raw_path = meta.get("filepath")
     if raw_path and os.path.exists(raw_path):
         return raw_path
-
     filename = meta.get("filename")
-    if not filename:
-        return None
-
-    fallback = os.path.join(BASE_DIR, "data", "images", filename)
-    if os.path.exists(fallback):
-        return fallback
-    return None
+    fallback = os.path.join(BASE_DIR, "data", "images", filename) if filename else None
+    return fallback if fallback and os.path.exists(fallback) else None
 
 
 def _render_image_matches(results):
     if not results:
         st.caption("No image matches found.")
         return
-
     st.caption("Matched images")
     for item in results:
         meta = item.get("metadata", {})
@@ -323,7 +290,7 @@ def _submit_ask(engine, query):
         with st.spinner("Generating answer..."):
             answer, ev = engine.ask(query)
         st.markdown(answer)
-        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+        st.caption(_format_eval_caption(ev))
     _append_message("/ask", "assistant", answer, ev=ev)
 
 
@@ -333,21 +300,22 @@ def _submit_ask_sql(engine, query):
         with st.spinner("Running SQL pipeline..."):
             answer, sql, results, ev = engine.ask_sql(query)
         st.markdown(answer)
-        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+        st.caption(_format_eval_caption(ev))
         st.caption("Generated SQL")
         st.code(sql, language="sql")
         st.caption("Result preview")
         st.write(results[:3] if isinstance(results, list) else results)
-    _append_message("/ask-sql", "assistant", answer, sql=sql, results=results[:3] if isinstance(results, list) else results, ev=ev)
+    _append_message("/ask-sql", "assistant", answer, sql=sql,
+                    results=results[:3] if isinstance(results, list) else results, ev=ev)
 
 
-def _submit_ask_image(engine, query, top_k):
-    _append_message("/ask-image", "user", query)
+def _submit_ask_image(engine, query, top_k, user_query=None):
+    _append_message("/ask-image", "user", (user_query or query).strip())
     with st.chat_message("assistant"):
         with st.spinner("Searching similar images..."):
-            results, answer, ev = engine.ask_image(query, top_k=top_k)
+            results, answer, ev = engine.ask_image(query, top_k=top_k, user_query=user_query)
         st.markdown(answer)
-        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+        st.caption(_format_eval_caption(ev))
         _render_image_matches(results)
     _append_message("/ask-image", "assistant", answer, results=results, ev=ev)
 
@@ -364,17 +332,14 @@ def main():
 
     with col_right:
         st.subheader("Controls")
-        endpoint = st.radio(
-            "Endpoint",
-            ["/ask", "/ask-sql", "/ask-image"],
-            key="selected_endpoint",
-        )
+        endpoint = st.radio("Endpoint", ["/ask", "/ask-sql", "/ask-image"], key="selected_endpoint")
         if st.button("Clear Chat UI", use_container_width=True):
             st.session_state.ui_messages[endpoint] = []
             st.rerun()
         if st.button("Clear Stored Memory", use_container_width=True):
             engine.memory.clear()
             st.success("Memory cleared.")
+
         st.markdown("---")
         st.subheader("Feedback")
         rating = st.slider("Rating", min_value=1, max_value=5, value=5)
@@ -390,9 +355,7 @@ def main():
                 st.write("No history yet.")
             else:
                 for msg in history[-20:]:
-                    ts = msg.get("timestamp", "")[:19]
-                    role = msg.get("role", "unknown").upper()
-                    st.write(f"[{ts}] {role}: {msg.get('content', '')[:160]}")
+                    st.write(f"[{msg.get('timestamp', '')[:19]}] {msg.get('role', 'unknown').upper()}: {msg.get('content', '')[:160]}")
 
     with col_left:
         _render_messages(endpoint)
@@ -401,10 +364,7 @@ def main():
             prompt = st.chat_input("Type your question")
             if prompt:
                 try:
-                    if endpoint == "/ask":
-                        _submit_ask(engine, prompt)
-                    else:
-                        _submit_ask_sql(engine, prompt)
+                    (_submit_ask if endpoint == "/ask" else _submit_ask_sql)(engine, prompt)
                     st.rerun()
                 except Exception as exc:
                     st.error(f"Request failed: {exc}")
@@ -419,21 +379,22 @@ def main():
                 except Exception as exc:
                     st.error(f"Image query failed: {exc}")
 
-            uploaded = st.file_uploader(
-                "Upload image for /ask-image",
-                type=["png", "jpg", "jpeg", "webp"],
-                key="image_upload",
-            )
+            uploaded = st.file_uploader("Upload image for /ask-image", type=["png", "jpg", "jpeg", "webp"], key="image_upload")
+            uploaded_question = st.text_input("Question for uploaded image", placeholder="Ask something about the uploaded image", key="uploaded_image_question")
             if uploaded is not None and st.button("Submit Uploaded Image"):
-                suffix = os.path.splitext(uploaded.name)[1] or ".png"
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(uploaded.getbuffer())
-                    temp_path = tmp.name
-                try:
-                    _submit_ask_image(engine, temp_path, top_k)
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Uploaded image failed: {exc}")
+                question = uploaded_question.strip()
+                if not question:
+                    st.warning("Please enter a question for the uploaded image.")
+                else:
+                    suffix = os.path.splitext(uploaded.name)[1] or ".png"
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        tmp.write(uploaded.getbuffer())
+                        temp_path = tmp.name
+                    try:
+                        _submit_ask_image(engine, temp_path, top_k, user_query=question)
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Uploaded image failed: {exc}")
 
 
 if __name__ == "__main__":
