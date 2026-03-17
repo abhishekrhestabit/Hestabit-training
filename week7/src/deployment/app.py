@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 import time
+import shutil
 import tempfile
 import google.genai as genai
 import streamlit as st
@@ -30,7 +31,12 @@ class RAGEngine:
         self.memory = MemoryStore(filepath=LOGS_PATH)
         self.evaluator = RAGEvaluator(config_path=CONFIG_PATH)
         self._ctx_builder = self._sql_pipeline = self._img_engine = None
+        # Custom CSV pipeline state
+        self._custom_sql_pipeline = None
+        self._custom_csv_name = None
+        self._custom_csv_tmpdir = None
 
+    # ── Lazy-loaded pipelines ─────────────────────────────
     @property
     def ctx_builder(self):
         if not self._ctx_builder:
@@ -52,6 +58,33 @@ class RAGEngine:
             self._img_engine = ImageSearchEngine()
         return self._img_engine
 
+    # ── Custom CSV pipeline ───────────────────────────────
+    def load_csv_as_pipeline(self, uploaded_file) -> str:
+        """Save an uploaded CSV to a temp dir and build a fresh SQLQAPipeline from it."""
+        # Clean up any previous temp dir
+        if self._custom_csv_tmpdir and os.path.exists(self._custom_csv_tmpdir):
+            shutil.rmtree(self._custom_csv_tmpdir, ignore_errors=True)
+
+        tmpdir = tempfile.mkdtemp()
+        csv_path = os.path.join(tmpdir, uploaded_file.name)
+        with open(csv_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        print(f"[CSV] Loading '{uploaded_file.name}' into custom pipeline...")
+        self._custom_sql_pipeline = SQLQAPipeline(csv_dir=tmpdir, config_path=CONFIG_PATH)
+        self._custom_csv_name = uploaded_file.name
+        self._custom_csv_tmpdir = tmpdir
+        return uploaded_file.name
+
+    def reset_custom_pipeline(self):
+        """Discard the custom CSV pipeline and return to the default DB."""
+        if self._custom_csv_tmpdir and os.path.exists(self._custom_csv_tmpdir):
+            shutil.rmtree(self._custom_csv_tmpdir, ignore_errors=True)
+        self._custom_sql_pipeline = None
+        self._custom_csv_name = None
+        self._custom_csv_tmpdir = None
+
+    # ── Core helpers ──────────────────────────────────────
     def _llm(self, prompt: str) -> str:
         return self._client.models.generate_content(model=self._model, contents=prompt).text.strip()
 
@@ -62,7 +95,7 @@ class RAGEngine:
         if not history or history == "No previous conversation.":
             return query
         prompt = f"""Rewrite the query as a standalone question using the chat history.
-Replace pronouns (it, that, them, this animal) with the actual subject from history.
+Replace pronouns (it, that, them, this) with the actual subject from history.
 If already standalone, return the original query exactly.
 Return ONLY the rewritten query.
 
@@ -126,10 +159,15 @@ INSTRUCTIONS:
     # ── /ask-sql ──────────────────────────────────────────
     def ask_sql(self, query: str):
         t0 = time.time()
+        # Route to custom pipeline if one has been loaded, otherwise use default
+        pipeline = self._custom_sql_pipeline if self._custom_sql_pipeline else self.sql_pipeline
+        source = f"custom ({self._custom_csv_name})" if self._custom_sql_pipeline else "default"
+        self._trace("SQL-SOURCE", f"Using {source} pipeline")
+
         history = self.memory.format_history_for_prompt()
         contextualized = f"Previous Chat:\n{history}\n\nNew Question: {query}"
 
-        answer, sql, results = self.sql_pipeline.run(contextualized, display_query=query)
+        answer, sql, results = pipeline.run(contextualized, display_query=query)
         context_used = str(results[:20])
         self._trace("SQL", "Query executed and summarized")
 
@@ -138,7 +176,7 @@ INSTRUCTIONS:
 
         if not ev.get("is_faithful", True):
             self._trace("REFINE", "Hallucination detected — re-running strict...")
-            answer, sql, results = self.sql_pipeline.run(
+            answer, sql, results = pipeline.run(
                 contextualized + "\nCRITICAL: Answer strictly from database. No hallucination.",
                 display_query=query
             )
@@ -233,6 +271,7 @@ def _format_eval_caption(ev: dict) -> str:
 def _init_state():
     st.session_state.setdefault("selected_endpoint", "/ask")
     st.session_state.setdefault("ui_messages", {"/ask": [], "/ask-sql": [], "/ask-image": []})
+    st.session_state.setdefault("csv_uploader_key", 0)
 
 
 def _render_messages(endpoint):
@@ -320,6 +359,36 @@ def _submit_ask_image(engine, query, top_k, user_query=None):
     _append_message("/ask-image", "assistant", answer, results=results, ev=ev)
 
 
+def _render_csv_uploader(engine):
+    """Compact CSV uploader rendered just above the chat input in col_left."""
+    up_col, status_col = st.columns([3, 2])
+    with up_col:
+        csv_file = st.file_uploader(
+            "Upload CSV",
+            type=["csv"],
+            key=f"csv_upload_{st.session_state.csv_uploader_key}",
+            label_visibility="collapsed",
+            help="Upload any CSV — a fresh in-memory SQLite DB is built from it immediately.",
+        )
+    with status_col:
+        if engine._custom_csv_name:
+            st.success(f"📄 **{engine._custom_csv_name}**")
+            if st.button("↩ Reset to default DB", use_container_width=True):
+                engine.reset_custom_pipeline()
+                st.session_state.csv_uploader_key += 1
+                st.rerun()
+        else:
+            st.caption("📂 Using default DB")
+
+    if csv_file is not None and csv_file.name != engine._custom_csv_name:
+        with st.spinner(f"Loading '{csv_file.name}' into database..."):
+            try:
+                engine.load_csv_as_pipeline(csv_file)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to load CSV: {e}")
+
+
 def main():
     st.set_page_config(page_title="Week7 RAG Assistant", layout="wide")
     _init_state()
@@ -357,10 +426,14 @@ def main():
                 for msg in history[-20:]:
                     st.write(f"[{msg.get('timestamp', '')[:19]}] {msg.get('role', 'unknown').upper()}: {msg.get('content', '')[:160]}")
 
+
+
     with col_left:
         _render_messages(endpoint)
 
         if endpoint in ["/ask", "/ask-sql"]:
+            if endpoint == "/ask-sql":
+                _render_csv_uploader(engine)
             prompt = st.chat_input("Type your question")
             if prompt:
                 try:
