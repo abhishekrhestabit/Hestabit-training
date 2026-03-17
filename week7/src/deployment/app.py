@@ -12,6 +12,7 @@ load_dotenv()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 from src.pipelines.context_builder import ContextBuilder
+from src.pipelines.ingest import load_documents, split_text, save_vector_db
 from src.pipelines.sql_pipeline import SQLQAPipeline
 from src.retriever.image_search import ImageSearchEngine
 from src.memory.memory_store import MemoryStore
@@ -20,6 +21,7 @@ from src.evaluation.rag_eval import RAGEvaluator
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "model.yaml")
 LOGS_PATH = os.path.join(BASE_DIR, "CHAT-LOGS.json")
+RAW_DATA_PATH = "/home/abhishekrai/Training/week7/src/data/raw"
 
 
 class RAGEngine:
@@ -84,6 +86,27 @@ class RAGEngine:
         self._custom_csv_name = None
         self._custom_csv_tmpdir = None
 
+    # ── Document ingestion for /ask ──────────────────────
+    def ingest_document(self, uploaded_file) -> str:
+        """Save uploaded file to raw data dir, re-run ingest, reload ContextBuilder."""
+        os.makedirs(RAW_DATA_PATH, exist_ok=True)
+        dest = os.path.join(RAW_DATA_PATH, uploaded_file.name)
+        with open(dest, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        print(f"[INGEST] Saved '{uploaded_file.name}' to {RAW_DATA_PATH}")
+
+        print("[INGEST] Running ingestion pipeline...")
+        docs = load_documents()
+        if not docs:
+            raise RuntimeError("No documents found after upload — ingestion aborted.")
+        chunks = split_text(docs)
+        save_vector_db(chunks)
+
+        # Force ContextBuilder to reload with the fresh FAISS index
+        self._ctx_builder = None
+        print("[INGEST] ContextBuilder reset — next query will use updated vectorstore.")
+        return uploaded_file.name
+
     # ── Core helpers ──────────────────────────────────────
     def _llm(self, prompt: str) -> str:
         return self._client.models.generate_content(model=self._model, contents=prompt).text.strip()
@@ -113,24 +136,45 @@ Rewritten Query:"""
         standalone_query = self._reformulate_query(query, history)
         self._trace("REWRITE", f"'{query}' → '{standalone_query}'" if standalone_query.lower() != query.lower() else "No rewrite needed")
 
-        context_str, docs = self.ctx_builder.build_context(standalone_query)
-        self._trace("RETRIEVAL", f"{len(docs)} chunks retrieved for '{standalone_query}'")
+        context_str, docs, top_score = self.ctx_builder.build_context(standalone_query)
+        self._trace("RETRIEVAL", f"{len(docs)} chunks retrieved for '{standalone_query}' (best score: {round(top_score, 4) if docs else 'n/a'})")
 
-        prompt = f"""You are an intelligent assistant with access to chat history and a retrieved database context.
+        # Context is empty if: no docs returned, OR all chunks scored below the
+        # reranker's relevance threshold (top_score == -inf signals this).
+        import math
+        context_is_empty = not docs or math.isinf(top_score)
+
+        if context_is_empty:
+            prompt = f"""You are an intelligent assistant. The document database returned no results for this query.
 
 --- CHAT HISTORY ---
 {history}
 
---- DATABASE CONTEXT ---
+--- USER QUESTION ---
+{query}
+
+The database has no information on this topic. Answer using your general knowledge and explicitly start your response with:
+"My document database has no information on this, but based on my general knowledge: "
+"""
+        else:
+            prompt = f"""You are an intelligent assistant. You have been given retrieved document chunks that are relevant to the user's question.
+
+--- CHAT HISTORY ---
+{history}
+
+--- RETRIEVED DOCUMENT CONTEXT ---
 {context_str}
 
 --- USER QUESTION ---
 {query} (Interpreted as: {standalone_query})
 
 INSTRUCTIONS:
-1. Identify the subject from CHAT HISTORY if the query uses pronouns.
-2. Answer using ONLY the DATABASE CONTEXT if possible.
-3. If the database has no relevant info, explicitly say: "I see from our history you are asking about [Subject], but my database has no information on this. However, using my general knowledge..." and answer using general knowledge.
+1. Your PRIMARY source is the RETRIEVED DOCUMENT CONTEXT above. It contains real chunks from the user's documents.
+2. Extract and present the specific facts, figures, and details from those chunks that answer the question.
+3. If the chunks contain partial information, present what IS there and note what is missing.
+4. DO NOT say the database has no information — chunks were retrieved. Use them.
+5. Cite the source and page when referencing a chunk (e.g. "According to [source], page X...").
+6. Only supplement with general knowledge if the chunks are genuinely silent on a specific sub-point, and clearly label it as such.
 """
         answer = self._llm(prompt)
         self._trace("GENERATION", f"Answer generated ({len(answer)} chars)")
@@ -139,18 +183,20 @@ INSTRUCTIONS:
         ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
         self._trace("EVAL", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
-        if not ev.get("is_faithful", True):
-            if "general knowledge" not in answer.lower() and "my database has no information" not in answer.lower():
-                self._trace("REFINE", "Hallucination detected — refining...")
-                answer = self._llm(
-                    f"Previous answer was unfaithful. Critique: {ev.get('critique')}\n\n"
-                    f"Chat History:\n{history}\n\nDatabase Context:\n{context_str}\n\nQuestion: {standalone_query}\n"
-                    "If the database lacks info, use general knowledge but warn: 'Using my general knowledge...'. Provide the final answer."
-                )
-                ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
-                self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
-            else:
-                self._trace("REFINE", "Authorized general knowledge fallback. Bypassing refinement.")
+        # Only refine if: context existed, evaluator flagged unfaithful, AND the answer
+        # didn't legitimately use the context (i.e. it hallucinated or ignored chunks).
+        if not context_is_empty and not ev.get("is_faithful", True):
+            self._trace("REFINE", "Answer ignored retrieved chunks — forcing grounded retry...")
+            answer = self._llm(
+                f"Your previous answer ignored the retrieved document chunks. Critique: {ev.get('critique')}\n\n"
+                f"Chat History:\n{history}\n\n"
+                f"Retrieved Document Context:\n{context_str}\n\n"
+                f"Question: {standalone_query}\n\n"
+                "You MUST answer using the document context above. Quote or paraphrase specific facts from the chunks. "
+                "Do not say the database is empty — it is not. Provide the corrected final answer."
+            )
+            ev = self.evaluator.evaluate_response(standalone_query, eval_context, answer)
+            self._trace("EVAL-2", f"Faithful={ev.get('is_faithful')} Confidence={ev.get('confidence_score')}%")
 
         self._trace("TIME", f"{time.time()-t0:.1f}s")
         self.memory.add_interaction(query, answer, metadata=ev, endpoint="/ask")
@@ -279,14 +325,14 @@ def _render_messages(endpoint):
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if msg.get("sql"):
-                st.caption("Generated SQL")
-                st.code(msg["sql"], language="sql")
+                with st.expander("Generated SQL"):
+                    st.code(msg["sql"], language="sql")
             if msg.get("results") is not None:
                 if endpoint == "/ask-image":
                     _render_image_matches(msg["results"])
                 else:
-                    st.caption("Result preview")
-                    st.write(msg["results"])
+                    with st.expander("Result preview"):
+                        st.write(msg["results"])
             if msg.get("eval"):
                 st.caption(_format_eval_caption(msg["eval"]))
 
@@ -340,10 +386,10 @@ def _submit_ask_sql(engine, query):
             answer, sql, results, ev = engine.ask_sql(query)
         st.markdown(answer)
         st.caption(_format_eval_caption(ev))
-        st.caption("Generated SQL")
-        st.code(sql, language="sql")
-        st.caption("Result preview")
-        st.write(results[:3] if isinstance(results, list) else results)
+        with st.expander("Generated SQL"):
+            st.code(sql, language="sql")
+        with st.expander("Result preview"):
+            st.write(results[:3] if isinstance(results, list) else results)
     _append_message("/ask-sql", "assistant", answer, sql=sql,
                     results=results[:3] if isinstance(results, list) else results, ev=ev)
 
@@ -387,6 +433,35 @@ def _render_csv_uploader(engine):
                 st.rerun()
             except Exception as e:
                 st.error(f"Failed to load CSV: {e}")
+
+
+def _render_doc_uploader(engine):
+    """Compact document uploader rendered just above the /ask chat input."""
+    up_col, status_col = st.columns([3, 2])
+    with up_col:
+        doc_file = st.file_uploader(
+            "Upload document",
+            type=["pdf", "txt", "docx", "csv"],
+            key=f"doc_upload_{st.session_state.get('doc_uploader_key', 0)}",
+            label_visibility="collapsed",
+            help="Upload a PDF, TXT, DOCX, or CSV — it will be ingested and the vectorstore updated.",
+        )
+    with status_col:
+        last = st.session_state.get("last_ingested_doc")
+        if last:
+            st.success(f"📄 **{last}** ingested")
+        else:
+            st.caption("📂 No new doc uploaded")
+
+    if doc_file is not None and doc_file.name != st.session_state.get("last_ingested_doc"):
+        with st.spinner(f"Ingesting '{doc_file.name}' and rebuilding vectorstore..."):
+            try:
+                engine.ingest_document(doc_file)
+                st.session_state["last_ingested_doc"] = doc_file.name
+                st.session_state["doc_uploader_key"] = st.session_state.get("doc_uploader_key", 0) + 1
+                st.rerun()
+            except Exception as e:
+                st.error(f"Ingestion failed: {e}")
 
 
 def main():
@@ -434,6 +509,8 @@ def main():
         if endpoint in ["/ask", "/ask-sql"]:
             if endpoint == "/ask-sql":
                 _render_csv_uploader(engine)
+            elif endpoint == "/ask":
+                _render_doc_uploader(engine)
             prompt = st.chat_input("Type your question")
             if prompt:
                 try:
