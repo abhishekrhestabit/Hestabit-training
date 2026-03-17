@@ -11,3 +11,4 @@ python-dotenv
 pyyaml
 tiktoken
 pdf2image
+streamlit

@@ -2,7 +2,9 @@ import os
 import sys
 import yaml
 import time
+import tempfile
 import google.genai as genai
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -233,90 +235,205 @@ Your goal is to answer the user's query and clearly explain the visually similar
         return "\n".join(lines)
 
 
-# ── CLI ────────────────────────────────────────────────────
-SEP = "-" * 50
+def _get_engine():
+    if "engine" not in st.session_state:
+        st.session_state.engine = RAGEngine()
+    return st.session_state.engine
 
-def print_eval(ev):
-    print(SEP)
-    print(f"  Confidence : {ev.get('confidence_score', '?')}%")
-    print(f"  Faithful   : {ev.get('is_faithful', '?')}")
-    print(f"  Critique   : {ev.get('critique', 'N/A')}")
-    print(SEP)
+
+def _init_state():
+    if "selected_endpoint" not in st.session_state:
+        st.session_state.selected_endpoint = "/ask"
+    if "ui_messages" not in st.session_state:
+        st.session_state.ui_messages = {
+            "/ask": [],
+            "/ask-sql": [],
+            "/ask-image": [],
+        }
+
+
+def _render_messages(endpoint):
+    for msg in st.session_state.ui_messages[endpoint]:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            if msg.get("sql"):
+                st.caption("Generated SQL")
+                st.code(msg["sql"], language="sql")
+            if msg.get("results") is not None:
+                if endpoint == "/ask-image":
+                    _render_image_matches(msg["results"])
+                else:
+                    st.caption("Result preview")
+                    st.write(msg["results"])
+            if msg.get("eval"):
+                ev = msg["eval"]
+                st.caption(
+                    f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%"
+                )
+
+
+def _append_message(endpoint, role, content, sql=None, results=None, ev=None):
+    st.session_state.ui_messages[endpoint].append(
+        {
+            "role": role,
+            "content": content,
+            "sql": sql,
+            "results": results,
+            "eval": ev,
+        }
+    )
+
+
+def _get_image_path(meta):
+    raw_path = meta.get("filepath")
+    if raw_path and os.path.exists(raw_path):
+        return raw_path
+
+    filename = meta.get("filename")
+    if not filename:
+        return None
+
+    fallback = os.path.join(BASE_DIR, "data", "images", filename)
+    if os.path.exists(fallback):
+        return fallback
+    return None
+
+
+def _render_image_matches(results):
+    if not results:
+        st.caption("No image matches found.")
+        return
+
+    st.caption("Matched images")
+    for item in results:
+        meta = item.get("metadata", {})
+        score = round(item.get("score", 0) * 100, 1)
+        image_path = _get_image_path(meta)
+        caption = f"{meta.get('filename', 'unknown')} | score: {score}% | {meta.get('caption', '')}"
+        if image_path:
+            st.image(image_path, caption=caption, use_container_width=True)
+        else:
+            st.write(caption)
+            st.caption("Image file not found on disk.")
+
+
+def _submit_ask(engine, query):
+    _append_message("/ask", "user", query)
+    with st.chat_message("assistant"):
+        with st.spinner("Generating answer..."):
+            answer, ev = engine.ask(query)
+        st.markdown(answer)
+        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+    _append_message("/ask", "assistant", answer, ev=ev)
+
+
+def _submit_ask_sql(engine, query):
+    _append_message("/ask-sql", "user", query)
+    with st.chat_message("assistant"):
+        with st.spinner("Running SQL pipeline..."):
+            answer, sql, results, ev = engine.ask_sql(query)
+        st.markdown(answer)
+        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+        st.caption("Generated SQL")
+        st.code(sql, language="sql")
+        st.caption("Result preview")
+        st.write(results[:3] if isinstance(results, list) else results)
+    _append_message("/ask-sql", "assistant", answer, sql=sql, results=results[:3] if isinstance(results, list) else results, ev=ev)
+
+
+def _submit_ask_image(engine, query, top_k):
+    _append_message("/ask-image", "user", query)
+    with st.chat_message("assistant"):
+        with st.spinner("Searching similar images..."):
+            results, answer, ev = engine.ask_image(query, top_k=top_k)
+        st.markdown(answer)
+        st.caption(f"Faithful: {ev.get('is_faithful', '?')} | Confidence: {ev.get('confidence_score', '?')}%")
+        _render_image_matches(results)
+    _append_message("/ask-image", "assistant", answer, results=results, ev=ev)
 
 
 def main():
-    print("=" * 55)
-    print("  RAG CLI Engine — Day 5 Capstone")
-    print("  Endpoints: /ask  /ask-image  /ask-sql  /quit /history /clear")
-    print("=" * 55)
+    st.set_page_config(page_title="Week7 RAG Assistant", layout="wide")
+    _init_state()
+    engine = _get_engine()
 
-    engine = RAGEngine()
+    st.title("Week7 RAG Assistant")
+    st.caption("Use Streamlit for endpoint chat. Backend traces continue in terminal logs.")
 
-    while True:
-        try:
-            cmd = input("\n> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            break
+    col_left, col_right = st.columns([3, 1])
 
-        if not cmd:
-            continue
-        if cmd == "/quit":
-            print("Goodbye.")
-            break
-        elif cmd == "/ask":
-            query = input("Query: ").strip()
-            if not query:
-                continue
-            answer, ev = engine.ask(query)
-            print(f"\n{SEP}\nQuery   : {query}\n{SEP}")
-            print(f"Answer  :\n{answer}")
-            print_eval(ev)
-        elif cmd == "/ask-sql":
-            query = input("Query: ").strip()
-            if not query:
-                continue
-            answer, sql, results, ev = engine.ask_sql(query)
-            print(f"\n{SEP}\nQuery   : {query}\n{SEP}")
-            print(f"SQL     :\n{sql}")
-            print(f"\n{SEP}\nResults (first 3):\n{results[:3]}")
-            print(f"\n{SEP}\nAnswer  :\n{answer}")
-            print_eval(ev)
-        elif cmd == "/ask-image":
-            query = input("Query (text or image path): ").strip()
-            if not query:
-                continue
-            _, answer, ev = engine.ask_image(query)
-            print(f"\n{SEP}\nQuery   : {query}\n{SEP}")
-            print(f"Answer  :\n{answer}")
-            print_eval(ev)
-        elif cmd == "/feedback":
-            try:
-                rating = int(input("Rating (1-5): ").strip())
-                if rating not in range(1, 6):
-                    print("Rating must be 1-5.")
-                    continue
-            except ValueError:
-                print("Enter a number 1-5.")
-                continue
-            comment = input("Comment (optional): ").strip()
+    with col_right:
+        st.subheader("Controls")
+        endpoint = st.radio(
+            "Endpoint",
+            ["/ask", "/ask-sql", "/ask-image"],
+            key="selected_endpoint",
+        )
+        if st.button("Clear Chat UI", use_container_width=True):
+            st.session_state.ui_messages[endpoint] = []
+            st.rerun()
+        if st.button("Clear Stored Memory", use_container_width=True):
+            engine.memory.clear()
+            st.success("Memory cleared.")
+        st.markdown("---")
+        st.subheader("Feedback")
+        rating = st.slider("Rating", min_value=1, max_value=5, value=5)
+        comment = st.text_area("Comment", value="")
+        if st.button("Submit Feedback", use_container_width=True):
             engine.memory.log_feedback(rating, comment)
-            print("Feedback logged.")
-        elif cmd == "/history":
+            st.success("Feedback logged.")
+
+        st.markdown("---")
+        with st.expander("Conversation History"):
             history = engine.memory.get_history()
             if not history:
-                print("  No history yet.")
+                st.write("No history yet.")
             else:
-                print(f"\n{SEP}")
-                for m in history:
-                    role = m['role'].upper()
-                    ts = m.get('timestamp', '')[:19]
-                    print(f"  [{ts}] {role}:\n  {m['content'][:200]}\n")
-                print(SEP)
-        elif cmd == "/clear":
-            engine.memory.clear()
-            print("Memory cleared.")
+                for msg in history[-20:]:
+                    ts = msg.get("timestamp", "")[:19]
+                    role = msg.get("role", "unknown").upper()
+                    st.write(f"[{ts}] {role}: {msg.get('content', '')[:160]}")
+
+    with col_left:
+        _render_messages(endpoint)
+
+        if endpoint in ["/ask", "/ask-sql"]:
+            prompt = st.chat_input("Type your question")
+            if prompt:
+                try:
+                    if endpoint == "/ask":
+                        _submit_ask(engine, prompt)
+                    else:
+                        _submit_ask_sql(engine, prompt)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Request failed: {exc}")
         else:
-            print("Commands: /ask  /ask-image  /ask-sql  /feedback  /history  /clear  /quit")
+            st.caption("Send a text query, or upload an image and submit it.")
+            top_k = st.slider("Top K", min_value=1, max_value=10, value=3)
+            text_prompt = st.chat_input("Type an image search question")
+            if text_prompt:
+                try:
+                    _submit_ask_image(engine, text_prompt, top_k)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Image query failed: {exc}")
+
+            uploaded = st.file_uploader(
+                "Upload image for /ask-image",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="image_upload",
+            )
+            if uploaded is not None and st.button("Submit Uploaded Image"):
+                suffix = os.path.splitext(uploaded.name)[1] or ".png"
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(uploaded.getbuffer())
+                    temp_path = tmp.name
+                try:
+                    _submit_ask_image(engine, temp_path, top_k)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Uploaded image failed: {exc}")
 
 
 if __name__ == "__main__":
