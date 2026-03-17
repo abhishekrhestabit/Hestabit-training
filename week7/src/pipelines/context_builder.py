@@ -19,11 +19,11 @@ class ContextBuilder:
             if doc.page_content not in seen_content:
                 seen_content.add(doc.page_content)
                 unique_docs.append(doc)
-        print(f"🧹 Deduplication: {len(documents)} -> {len(unique_docs)} chunks.")
+        print(f"Deduplication: {len(documents)} -> {len(unique_docs)} chunks.")
         return unique_docs
 
     def build_context(self, query, filters=None):
-        # 1. Hybrid Retrieval (Vector MMR + BM25)
+        # 1. Hybrid Retrieval (Vector MMR + BM25) 
         raw_docs = self.retriever.retrieve(query, filters=filters)
         
         # 2. Deduplicate
@@ -54,6 +54,6 @@ if __name__ == "__main__":
     builder = ContextBuilder()
     formatted_context, docs = builder.build_context(query, filters=filters)
 
-    print("\n✅ Final Traceable Context:\n")
+    print("\nFinal Traceable Context:\n")
     print(formatted_context)
-    print(f"\n📦 {len(docs)} chunks passed to context window.")
+    print(f"\n{len(docs)} chunks passed to context window.")

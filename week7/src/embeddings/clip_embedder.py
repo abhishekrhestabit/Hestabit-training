@@ -20,7 +20,7 @@ class CLIPEmbedder:
 
     def embed_image(self, image_path: str) -> list[float]:
         """Converts an image file into a 512-dimensional vector."""
-        image = Image.open(image_path).convert("RGB")
+        image = Image.open(image_path).convert("RGB") 
         inputs = self.processor(images=image, return_tensors="pt").to(self.device)
         with torch.no_grad():
             embeddings = self.model.get_image_features(**inputs)

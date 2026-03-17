@@ -22,7 +22,6 @@ class ImageSearchEngine:
         print("Loading CLIP Embedder...")
         self.clip_embedder = CLIPEmbedder()
         self.fused_index = self._load_index("image_index.faiss")
-        self.clip_index = self._load_index("image_index_clip.faiss")
         self.metadata = self._load_metadata()
 
         # 2. Load BLIP for Live Query Image Captioning
@@ -48,12 +47,6 @@ class ImageSearchEngine:
         out = self.blip_model.generate(**inputs)
         return self.blip_processor.decode(out[0], skip_special_tokens=True)
 
-    def _fuse_and_normalize(self, caption_vector: np.ndarray, image_vector: np.ndarray) -> np.ndarray:
-        """Applies 60/40 weighted fusion and L2 normalizes the result."""
-        fused = (0.6 * caption_vector) + (0.4 * image_vector)
-        norm = np.linalg.norm(fused)
-        return fused / norm if norm > 0 else fused
-
     def _search(self, index, vector, top_k):
         distances, indices = index.search(np.array([vector], dtype=np.float32), top_k)
         return [{"score": float(s), "metadata": self.metadata[i]}
@@ -67,21 +60,38 @@ class ImageSearchEngine:
         """Text→Image: CLIP text embedding vs pure CLIP image embeddings."""
         print(f"  [SEARCH] text→image: '{text_query}'")
         query_vector = self._normalize(np.array(self.clip_embedder.embed_text(text_query), dtype=np.float32))
-        return self._search(self.clip_index, query_vector, top_k)
+        return self._search(self.fused_index, query_vector, top_k)
 
     def extract_caption_ocr(self, image_path: str) -> dict:
+        """Extracts both BLIP caption and Tesseract OCR for an image."""
         img = Image.open(image_path).convert("RGB")
         caption = self._extract_live_caption(image_path)
         ocr = pytesseract.image_to_string(img).strip()
         return {"caption": caption, "ocr": ocr}
 
     def search_by_image(self, image_path: str, top_k=3):
+        """Image→Image: Dynamically fuses Caption, OCR, and Pixels to match ingestion."""
         print(f"\n Processing query image: '{os.path.basename(image_path)}'")
-        query_caption = self._extract_live_caption(image_path)
-        print(f" Live Caption Generated: '{query_caption}'")
-        caption_vector = np.array(self.clip_embedder.embed_text(query_caption), dtype=np.float32)
+        
+        # 1. Extract BOTH Caption and OCR
+        meta = self.extract_caption_ocr(image_path)
+        caption = meta["caption"]
+        ocr_text = meta["ocr"]
+        
+        print(f" Live Caption Generated: '{caption}'")
+        if ocr_text:
+            print(f" Live OCR Extracted: '{ocr_text[:30]}...'")
+
+        # 2. Embed the base pieces
+        caption_vector = np.array(self.clip_embedder.embed_text(caption), dtype=np.float32)
         image_vector = np.array(self.clip_embedder.embed_image(image_path), dtype=np.float32)
-        fused_vector = self._fuse_and_normalize(caption_vector, image_vector)
+        
+        # 3. Dynamic Fusion
+        
+        fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
+
+        # 4. Normalize and Search
+        fused_vector = self._normalize(fused_vector)
         return self._search(self.fused_index, fused_vector, top_k)
 
 if __name__ == "__main__":
@@ -89,14 +99,14 @@ if __name__ == "__main__":
 
     # Text-to-Image Test
     print("\n=== Text-to-Image Search ===")
-    results_text = search_engine.search_by_text("moon", top_k=2)
+    results_text = search_engine.search_by_text("moon", top_k=3)
     for i, res in enumerate(results_text):
         print(f"Result {i+1}: {res['metadata']['filename']} (Score: {res['score']:.4f})")
         print(f"Caption: {res['metadata']['caption']}")
         print("-" * 30)
 
     print("\n=== Image-to-Image Search ===")
-    results_image = search_engine.search_by_image("src/data/images/Bird.png", top_k=2)
+    results_image = search_engine.search_by_image("src/data/images/Bird.png", top_k=3)
     for i, res in enumerate(results_image):
         print(f"Result {i+1}: {res['metadata']['filename']} (Score: {res['score']:.4f})")
         print(f"Caption: {res['metadata']['caption']}")

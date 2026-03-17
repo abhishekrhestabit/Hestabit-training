@@ -77,30 +77,45 @@ def load_documents():
 
 
 def split_text(documents):
-    """Step 2: Split into 500–800 token chunks with metadata."""
+    """Step 2: Split unstructured text, but keep structured CSV rows intact."""
+    
+    # 1. Route the documents based on metadata tags
+    unstructured_docs = [doc for doc in documents if doc.metadata.get("tag") != "structured"]
+    structured_docs = [doc for doc in documents if doc.metadata.get("tag") == "structured"]
+    
+    print(f" Routing: {len(unstructured_docs)} unstructured pages to chunker.")
+    print(f" Routing: {len(structured_docs)} structured CSV rows bypassing chunker.")
+
+    # 2. Chunk only the unstructured text
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
         chunk_overlap=100,
-        add_start_index=True  # Adds 'start_index' metadata to each chunk
+        add_start_index=True 
     )
-    chunks = text_splitter.split_documents(documents)
+    unstructured_chunks = text_splitter.split_documents(unstructured_docs)
+
+    # 3. Recombine them safely
+    final_chunks = unstructured_chunks + structured_docs
 
     # Save chunks to disk for inspection
     os.makedirs(CHUNKS_PATH, exist_ok=True)
     chunks_file = os.path.join(CHUNKS_PATH, "chunks_preview.txt")
-    with open(chunks_file, "w") as f:
-        for i, chunk in enumerate(chunks):
+    with open(chunks_file, "w", encoding="utf-8") as f:
+        for i, chunk in enumerate(final_chunks):
             f.write(f"--- Chunk {i+1} ---\n")
             f.write(f"Source: {chunk.metadata.get('source', 'unknown')}\n")
-            f.write(f"Page: {chunk.metadata.get('page', 'N/A')}\n")
+            # CSV rows store their index in 'row', PDFs use 'page'
+            f.write(f"Page/Row: {chunk.metadata.get('page', chunk.metadata.get('row', 'N/A'))}\n")
             f.write(f"Type: {chunk.metadata.get('file_type', 'unknown')}\n")
             f.write(f"Tag: {chunk.metadata.get('tag', '')}\n")
             f.write(f"Start Index: {chunk.metadata.get('start_index', 'N/A')}\n")
             f.write(f"Content:\n{chunk.page_content}\n\n")
 
-    print(f" Split into {len(chunks)} chunks.")
-    print(f"Chunk preview saved to {chunks_file}")
-    return chunks
+    print(f" Split into {len(unstructured_chunks)} unstructured chunks.")
+    print(f" Total chunks ready for database: {len(final_chunks)}")
+    print(f" Chunk preview saved to {chunks_file}")
+    
+    return final_chunks
 
 
 def save_vector_db(chunks):
@@ -112,7 +127,7 @@ def save_vector_db(chunks):
     embedder = Embedder()
     embeddings = embedder.get_embeddings()
 
-    db = FAISS.from_documents(chunks, embeddings) # index-flat l2 by default, which is exact search.You can also use index Ip.For larger datasets, consider 'hnsw' or 'ivf' for approximate search.
+    db = FAISS.from_documents(chunks, embeddings) 
     os.makedirs(DB_PATH, exist_ok=True)
     db.save_local(DB_PATH)
     print(f"Saved FAISS index to {DB_PATH}")

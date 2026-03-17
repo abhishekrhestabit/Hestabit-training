@@ -119,11 +119,8 @@ class ImageIngestionPipeline:
             image_vector   = np.array(self.embedder.embed_image(filepath), dtype=np.float32)
             caption_vector = np.array(self.embedder.embed_text(caption),   dtype=np.float32)
 
-            if ocr_text:
-                ocr_vector   = np.array(self.embedder.embed_text(ocr_text), dtype=np.float32)
-                fused_vector = (0.4 * caption_vector) + (0.3 * ocr_vector) + (0.3 * image_vector)
-            else:
-                fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
+            
+            fused_vector = (0.6 * caption_vector) + (0.4 * image_vector)
 
             # L2 Normalize so inner-product == cosine similarity in FAISS
             norm = np.linalg.norm(fused_vector)
@@ -134,7 +131,6 @@ class ImageIngestionPipeline:
             clip_norm = np.linalg.norm(image_vector)
             if clip_norm > 0:
                 image_vector = image_vector / clip_norm
-            self.clip_index.add(np.array([image_vector], dtype=np.float32))
 
             self.index.add(np.array([fused_vector], dtype=np.float32))
 
@@ -157,7 +153,6 @@ class ImageIngestionPipeline:
 
         os.makedirs(DB_PATH, exist_ok=True)
         faiss.write_index(self.index, os.path.join(DB_PATH, "image_index.faiss"))
-        faiss.write_index(self.clip_index, os.path.join(DB_PATH, "image_index_clip.faiss"))
         with open(os.path.join(DB_PATH, "image_metadata.pkl"), "wb") as f:
             pickle.dump(self.metadata_store, f)
         print("\n Multimodal DB successfully saved.")

@@ -22,7 +22,7 @@ class QueryEngine:
         Searches the vector database for the top-k most relevant chunks.
         Returns list of (Document, score) tuples.
         """
-        print(f"🔎 Querying: '{query}'")
+        print(f"Querying: '{query}'")
         results = self.db.similarity_search_with_score(query, k=k)
         return results
 

@@ -14,7 +14,7 @@ class Reranker:
         if not documents:
             return []
 
-        print(f"⚖️  Reranking {len(documents)} candidates using Cross-Encoder...")
+        print(f"Reranking {len(documents)} candidates using Cross-Encoder...")
 
         # Score every (query, chunk) pair
         pairs = [(query, doc.page_content) for doc in documents]
