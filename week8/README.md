@@ -1,6 +1,6 @@
 # Week 8 — Local LLM Training, Quantisation & Deployment
 
-End-to-end workflow: fine-tune TinyLlama-1.1B with QLoRA, quantise to GGUF/INT4/INT8, benchmark, and deploy as a local API.
+End-to-end workflow: fine-tune TinyLlama-1.1B with QLoRA, quantise to GGUF/INT4/INT8, benchmark, and deploy as a local Streamlit app.
 
 ## Project Structure
 
@@ -8,9 +8,8 @@ End-to-end workflow: fine-tune TinyLlama-1.1B with QLoRA, quantise to GGUF/INT4/
 adapters/          QLoRA adapter weights (LoRA r=16, α=32)
 benchmarks/        Inference benchmark results
 data/              Training & validation JSONL
-deploy/            FastAPI inference server (Day 5 capstone)
-  app.py           API server with /generate and /chat
-  streamlit_app.py Streamlit chat UI with rolling history
+deploy/            Streamlit inference app (Day 5 capstone)
+  streamlit_app.py Streamlit UI with Chat + Generate tabs
   model_loader.py  Singleton model loader with prompt formatting
   config.py        Environment-configurable settings
   requirements.txt Python dependencies
@@ -27,47 +26,16 @@ Dockerfile         Container deployment
 cd deploy
 pip install -r requirements.txt
 
-# Start API server
-python app.py
-
-# Or Streamlit chat UI
+# Start Streamlit app
 streamlit run streamlit_app.py
 ```
 
-## API Endpoints
+## Streamlit Features
 
-### POST /generate
-Single-prompt generation with Alpaca-style formatting.
-```bash
-curl -X POST http://localhost:8000/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Explain quantum computing in simple terms", "max_tokens": 128, "temperature": 0.7}'
-```
-
-### POST /chat
-Multi-turn chat with system prompt and conversation history.
-
-Use session-based history for CLI-like behavior by sending a single user message each call with the same `session_id`.
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": "demo-session-1",
-    "messages": [{"role": "user", "content": "What is machine learning?"}],
-    "system": "You are a helpful AI tutor.",
-    "temperature": 0.7
-  }'
-```
-
-Optional chat fields:
-- `session_id`: Persist and reuse server-side history across calls.
-- `reset_history`: Clear server-side history for that session before processing.
-
-### Streaming
-Set `"stream": true` in either endpoint to get SSE token-by-token output.
-
-### GET /health
-Returns model status.
+- Chat tab with rolling conversation memory (last 10 turns)
+- Generate tab for single instruction/input prompt generation
+- Adjustable generation controls: max_tokens, temperature, top_p, top_k
+- Local inference (no FastAPI dependency at runtime)
 
 ## Generation Controls
 
@@ -81,8 +49,8 @@ Returns model status.
 ## Docker
 
 ```bash
-docker build -t tinyllama-api .
-docker run -p 8000:8000 tinyllama-api
+docker build -t tinyllama-streamlit .
+docker run -p 8501:8501 tinyllama-streamlit
 ```
 
 ## Environment Variables
@@ -93,5 +61,5 @@ docker run -p 8000:8000 tinyllama-api
 | `N_CTX` | 2048 | Context window size |
 | `N_THREADS` | CPU count | Inference threads |
 | `MAX_TOKENS` | 256 | Default max generation tokens |
-| `HOST` | 0.0.0.0 | Server bind address |
-| `PORT` | 8000 | Server port |
+| `STREAMLIT_SERVER_ADDRESS` | 0.0.0.0 | Streamlit bind address |
+| `STREAMLIT_SERVER_PORT` | 8501 | Streamlit port |
