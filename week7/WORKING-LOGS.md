@@ -73,4 +73,22 @@
       "fixed_answer": "Liberty Broadband Corporation is not an animal. The provided context only contains information and images related to dogs. There is no information in the context regarding how to buy a dog or how to invest in Liberty Broadband Corporation."
     }
   }
+
+    {
+    "role": "user",
+    "content": "How many people have names starting with A ?",
+    "timestamp": "2026-03-18T03:05:39.282263",
+    "endpoint": "/ask-sql"
+  },
+  {
+    "role": "assistant",
+    "content": "There are 75 people whose names start with the letter A.",
+    "timestamp": "2026-03-18T03:05:39.282263",
+    "endpoint": "/ask-sql",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The generated answer accurately reflects the count provided in the factual context."
+    }
+  }
 ]

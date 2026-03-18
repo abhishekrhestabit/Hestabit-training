@@ -418,13 +418,13 @@ def _render_csv_uploader(engine):
         )
     with status_col:
         if engine._custom_csv_name:
-            st.success(f"📄 **{engine._custom_csv_name}**")
+            st.success(f"**{engine._custom_csv_name}**")
             if st.button("↩ Reset to default DB", use_container_width=True):
                 engine.reset_custom_pipeline()
                 st.session_state.csv_uploader_key += 1
                 st.rerun()
         else:
-            st.caption("📂 Using default DB")
+            st.caption("Using default DB")
 
     if csv_file is not None and csv_file.name != engine._custom_csv_name:
         with st.spinner(f"Loading '{csv_file.name}' into database..."):
@@ -449,9 +449,9 @@ def _render_doc_uploader(engine):
     with status_col:
         last = st.session_state.get("last_ingested_doc")
         if last:
-            st.success(f"📄 **{last}** ingested")
+            st.success(f"**{last}** ingested")
         else:
-            st.caption("📂 No new doc uploaded")
+            st.caption("No new doc uploaded")
 
     if doc_file is not None and doc_file.name != st.session_state.get("last_ingested_doc"):
         with st.spinner(f"Ingesting '{doc_file.name}' and rebuilding vectorstore..."):

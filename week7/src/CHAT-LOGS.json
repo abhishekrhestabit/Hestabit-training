@@ -15,5 +15,22 @@
       "confidence_score": 100,
       "critique": "The generated answer accurately reflects the count provided in the factual context."
     }
+  },
+  {
+    "role": "user",
+    "content": "How many customers are there ?",
+    "timestamp": "2026-03-18T11:20:10.788643",
+    "endpoint": "/ask-sql"
+  },
+  {
+    "role": "assistant",
+    "content": "There are 1,000 customers.",
+    "timestamp": "2026-03-18T11:20:10.788643",
+    "endpoint": "/ask-sql",
+    "metadata": {
+      "is_faithful": true,
+      "confidence_score": 100,
+      "critique": "The answer directly and accurately reflects the value provided in the factual context."
+    }
   }
 ]
