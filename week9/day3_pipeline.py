@@ -1,19 +1,3 @@
-"""
-day3_pipeline.py
-─────────────────────────────────────────────────────────────────
-Day 3 — Tool-Calling Agent Pipeline
-
-Architecture (GitHub Copilot style):
-    1. PLAN    — LLM reads the query, produces a numbered task list
-    2. EXECUTE — each task runs its tool (file / code / shell / db)
-    3. FIX     — if a task fails, LLM diagnoses and retries once
-    4. ANSWER  — LLM writes a final answer from all task outputs
-    5. STOP    — user gets the answer, can ask next query
-
-No multi-agent chat loops. No routing directives. No TERMINATE.
-Each step is a direct, focused LLM call or tool call.
-─────────────────────────────────────────────────────────────────
-"""
 
 import asyncio
 import json

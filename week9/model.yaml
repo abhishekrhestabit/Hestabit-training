@@ -8,7 +8,7 @@
 #  ACTIVE PROVIDER — change this one value only
 #  Options: "ollama" | "gemini" | "groq"
 # ─────────────────────────────────────────────
-active_provider: "ollama"   # ← set to your desired provider
+active_provider: "gemini"   # ← set to your desired provider
 
 # ─────────────────────────────────────────────
 #  LOCAL — Ollama + Qwen 2.5 (CPU-friendly)
@@ -23,7 +23,7 @@ ollama:
 # ─────────────────────────────────────────────
 gemini:
   model: "gemini-3.1-flash-lite-preview"
-  api_key: "${GEMINI_API_KEY}"   # set via environment variable
+  api_key: "AIzaSyAJkv4kECM6-pRIBRk5-MlQisAxYrh3qdE"   # set via environment variable
  
 
 # ─────────────────────────────────────────────
