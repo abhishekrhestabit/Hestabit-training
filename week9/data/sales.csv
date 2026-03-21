@@ -1,0 +1,11 @@
+product,region,amount,units,month
+Widget A,North,15000,300,Jan
+Widget B,South,22000,440,Jan
+Widget A,East,18000,360,Feb
+Widget C,West,9500,190,Feb
+Widget B,North,31000,620,Mar
+Widget A,South,27000,540,Mar
+Widget C,East,12000,240,Apr
+Widget B,West,19500,390,Apr
+Widget A,North,33000,660,May
+Widget C,South,8500,170,May

@@ -1,18 +1,19 @@
 from autogen_agentchat.agents import AssistantAgent
+from autogen_core.model_context import BufferedChatCompletionContext
 
-def get_worker(name, role_focus, model_client):
+def get_worker_agent(model_client, worker_id: int):
     return AssistantAgent(
-        name=name,
-        system_message=f"""You are a specialized worker focusing exclusively on: {role_focus}. 
-Look at the Planner's output in the chat history and execute ONLY your specific portion of the plan. 
-Keep your response concise. Do not do the other worker's job.""",
-        model_client=model_client
-    )
+        name=f"Worker_Agent_{worker_id}",
+        system_message=f"""You are Worker Agent #{worker_id} in a multi-agent pipeline.
 
-def get_reflection_agent(model_client):
-    return AssistantAgent(
-        name="Reflection_Agent",
-        system_message="""You are the Reflection Agent. Review the outputs from Worker_1_Tech and Worker_2_Biz. 
-Synthesize their findings into a single, cohesive master draft. Resolve any contradictions.""",
-        model_client=model_client
+You will receive a single sub-task. Your job is to execute ONLY that sub-task thoroughly.
+
+Rules:
+- Focus strictly on the assigned sub-task.
+- Provide detailed, factual output.
+- Do NOT summarize other tasks or answer the overall query.
+- Label your output clearly: start with "WORKER {worker_id} OUTPUT:"
+""",
+        model_client=model_client,
+        model_context=BufferedChatCompletionContext(buffer_size=10)
     )

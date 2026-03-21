@@ -1,0 +1,36 @@
+# =============================================================
+#  model.yaml — Unified Model Configuration
+#  AutoGen 0.7.5 compatible
+#  Toggle between LOCAL (Ollama/Qwen) and API (Gemini/Groq)
+# =============================================================
+
+# ─────────────────────────────────────────────
+#  ACTIVE PROVIDER — change this one value only
+#  Options: "ollama" | "gemini" | "groq"
+# ─────────────────────────────────────────────
+active_provider: "ollama"   # ← set to your desired provider
+
+# ─────────────────────────────────────────────
+#  LOCAL — Ollama + Qwen 2.5 (CPU-friendly)
+# ─────────────────────────────────────────────
+ollama:
+  model: "qwen2.5:3b"          # or qwen2.5:7b, qwen2.5:14b, etc.
+  
+
+# ─────────────────────────────────────────────
+#  API — Google Gemini
+#  Uncomment + set your key to use
+# ─────────────────────────────────────────────
+gemini:
+  model: "gemini-3.1-flash-lite-preview"
+  api_key: "${GEMINI_API_KEY}"   # set via environment variable
+ 
+
+# ─────────────────────────────────────────────
+#  API — Groq (ultra-fast, free tier available)
+#  Uncomment + set your key to use
+# ─────────────────────────────────────────────
+groq:
+  model: "llama-3.3-70b-versatile"      # or mixtral-8x7b-32768
+  api_key: "${GROQ_API_KEY}"     # set via environment variable
+  base_url: "https://api.groq.com/openai/v1"

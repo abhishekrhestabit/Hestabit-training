@@ -1,0 +1,10 @@
+id,amount,units,month
+East,Widget A,18000,360,Feb
+East,Widget C,12000,240,Apr
+North,Widget A,48000,960,JanMay
+North,Widget B,31000,620,Mar
+South,Widget A,27000,540,Mar
+South,Widget B,22000,440,Jan
+South,Widget C,8500,170,May
+West,Widget B,19500,390,Apr
+West,Widget C,9500,190,Feb

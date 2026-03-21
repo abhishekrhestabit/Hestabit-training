@@ -1,0 +1,10 @@
+product,region,amount,units
+Widget A,East,18000,360
+Widget A,North,48000,960
+Widget A,South,27000,540
+Widget B,North,31000,620
+Widget B,South,22000,440
+Widget B,West,19500,390
+Widget C,East,12000,240
+Widget C,South,8500,170
+Widget C,West,9500,190

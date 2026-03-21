@@ -1,16 +1,22 @@
 import asyncio
-from autogen_agentchat.teams import SelectorGroupChat
-from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_ext.models.ollama import OllamaChatCompletionClient
 
-from orchestrator.planner import get_planner
-from agents.worker_agent import get_worker, get_reflection_agent
-from agents.validator import get_validator
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-async def main():
-    # 1. Connect to Qwen 2.5 3B
-    model_client = OllamaChatCompletionClient(
-        model="qwen2.5:3b",
+from orchestrator.planner import get_planner_agent
+from agents.worker_agent import get_worker_agent
+from agents.reflection_agent import get_reflection_agent
+from agents.validator import get_validator_agent
+from agents.answer_agent import get_answer_agent
+
+
+# ─────────────────────────────────────────────
+# CONFIG — swap model/base_url to your local LLM
+# ─────────────────────────────────────────────
+def get_model_client():
+    return OllamaChatCompletionClient(
+        model="qwen2.5:3b-instruct-q4_K_M",
         model_info={
             "vision": False,
             "function_calling": True,
@@ -20,54 +26,85 @@ async def main():
         }
     )
 
-    # 2. Instantiate all 5 agents
-    planner = get_planner(model_client)
-    worker_1 = get_worker("Worker_1_Tech", "Technical Architecture", model_client)
-    worker_2 = get_worker("Worker_2_Biz", "Business Strategy", model_client)
-    reflection = get_reflection_agent(model_client)
-    validator = get_validator(model_client)
+def parse_plan(plan_text: str) -> list[str]:
+    """Extract numbered sub-tasks from planner output."""
+    lines = plan_text.strip().split("\n")
+    tasks = []
+    for line in lines:
+        line = line.strip()
+        if line and line[0].isdigit() and "." in line:
+            task = line.split(".", 1)[1].strip()
+            tasks.append(task)
+    return tasks
 
-    # 3. Define the DAG State Machine (Chain of Command)
-    def custom_router(messages):
-        if not messages:
-            return "Planner"
-            
-        last_speaker = messages[-1].source
-        
-        # The Execution Tree
-        if last_speaker == "user":
-            return "Planner"
-        elif last_speaker == "Planner":
-            return "Worker_1_Tech"
-        elif last_speaker == "Worker_1_Tech":
-            return "Worker_2_Biz"
-        elif last_speaker == "Worker_2_Biz":
-            return "Reflection_Agent"
-        elif last_speaker == "Reflection_Agent":
-            return "Validator_Agent"
-        else:
-            return None # Terminate the flow
 
-    # 4. Create the Team using the custom router
-    termination = MaxMessageTermination(max_messages=6)
-    team = SelectorGroupChat(
-        participants=[planner, worker_1, worker_2, reflection, validator],
-        selector_func=custom_router,
-        termination_condition=termination
+async def run_pipeline(user_query: str):
+    model_client = get_model_client()
+
+    # ── Step 1: Planner ──
+    print("\n[1/4]  Planner is breaking down your query...", flush=True)
+    planner = get_planner_agent(model_client)
+    plan_response = await planner.run(task=user_query)
+    plan_text = plan_response.messages[-1].content
+    tasks = parse_plan(plan_text)
+
+    if not tasks:
+        print(" Planner returned no tasks.")
+        return
+
+    print(f"      ✔ Plan ready — {len(tasks)} sub-tasks created", flush=True)
+
+    # ── Step 2: Parallel Workers ──
+    print(f"\n[2/4]   Running {len(tasks)} workers in parallel...", flush=True)
+
+    async def run_worker(worker_id, task):
+        worker = get_worker_agent(model_client, worker_id)
+        result = await worker.run(task=task)
+        print(f"      ✔ Worker {worker_id} done — {task}", flush=True)
+        return result.messages[-1].content
+    
+    
+    worker_results = await asyncio.gather(*[
+        run_worker(i + 1, task) for i, task in enumerate(tasks)
+    ])
+
+    # ── Step 3: Reflection ──
+    print(f"\n[3/4]  Reflection Agent is synthesizing outputs...", flush=True)
+    combined = "\n\n".join(worker_results)
+    reflection_input = (
+        f"Original Query: {user_query}\n\n"
+        f"Sub-task Plan:\n{plan_text}\n\n"
+        f"Worker Outputs:\n{combined}"
     )
+    reflection_agent = get_reflection_agent(model_client)
+    reflection_response = await reflection_agent.run(task=reflection_input)
+    reflection_output = reflection_response.messages[-1].content
+    print("      ✔ Synthesis complete", flush=True)
 
-    # 5. Execute the Workflow
-    user_query = "Plan a basic SaaS application for AI-driven fitness tracking."
-    print("==================================================")
-    print(f"DAY 2 TASK: {user_query}")
-    print("==================================================\n")
-    
-    result = await team.run(task=user_query)
-    
-    for msg in result.messages:
-        if msg.source != "user":
-            print(f"\n[{msg.source.upper()}] says:\n{msg.content}\n")
-            print("-" * 50)
+   
+    # ── Step 4: Validation + Final Answer ──
+    print(f"\n[4/4]  Validator is checking and generating final answer...", flush=True)
+    validation_input = (
+        f"Original Sub-task Plan:\n{plan_text}\n\n"
+        f"Reflection Output:\n{reflection_output}"
+    )
+    validator = get_validator_agent(model_client)
+    validation_response = await validator.run(task=validation_input)
+    final_answer = validation_response.messages[-1].content
+
+    if "VALIDATION FAILED" in final_answer.upper():
+        print("\n  Validation FAILED. Please refine your query.")
+        return
+
+    print("\n" + "=" * 60)
+    print("                  FINAL ANSWER")
+    print("=" * 60)
+    print(final_answer)
+    print("=" * 60 + "\n")
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    query = input("Enter your query: ").strip()
+    if not query:
+        query = "Explain the applications of AI in healthcare"
+    asyncio.run(run_pipeline(query))
