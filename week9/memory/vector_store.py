@@ -170,39 +170,38 @@ class VectorStore:
 
         return results
 
-    def search_as_context(self, query: str, top_k: int | None = None) -> str:
+    def search_as_context(self, query: str, top_k: int | None = None,
+                          max_distance: float = 1.0) -> str:
         """
         Search and return results as a plain string ready to inject into a prompt.
-        Returns empty string if no memories exist yet.
+        max_distance: L2 distance threshold — results above this are too dissimilar
+                      to be useful. Lower = stricter. Typical range 0.3 (very close)
+                      to 1.0 (loosely related). Default 1.0 filters obvious noise.
+        Returns empty string if no relevant memories found.
         """
         results = self.search(query, top_k=top_k)
-        if not results:
+        # Filter by relevance threshold — don't inject unrelated memories
+        relevant = [r for r in results if r["score"] <= max_distance]
+        if not relevant:
             return ""
         lines = ["── Relevant past memories ──"]
-        for i, r in enumerate(results, 1):
+        for i, r in enumerate(relevant, 1):
             lines.append(f"  [{i}] {r['text']}")
         return "\n".join(lines)
 
-    def recall_context(self, query: str) -> str:
+    def recall_context(self, query: str, max_distance: float = 1.0) -> str:
         """
-        Semantic recall for a query — returns context string for prompt injection.
-        Called by the pipeline's recall step before planning.
+        Semantic recall — returns only facts relevant to this query.
+        Filters out entries that are too dissimilar (distance > max_distance).
         """
-        return self.search_as_context(query)
-
-    def store_episode(self, query: str, answer: str) -> None:
-        """
-        Embed and store a completed query+answer pair.
-        Called by the pipeline after every successful run.
-        """
-        summary = answer[:300] + ("..." if len(answer) > 300 else "")
-        self.add(f"Q: {query}", metadata={"type": "query"})
-        self.add(f"A: {summary}", metadata={"type": "answer"})
+        return self.search_as_context(query, max_distance=max_distance)
 
     def store_fact(self, fact: str) -> None:
         """
-        Embed and store a single semantic fact.
-        Called after fact extraction from Q&A pairs.
+        Embed and store a single verified fact.
+        This is the ONLY write method the pipeline should call.
+        Vector store holds facts only — not raw Q&A transcripts.
+        The session handles the conversation; LTM handles episodic storage.
         """
         self.add(fact, metadata={"type": "fact"})
 

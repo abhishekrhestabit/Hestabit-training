@@ -22,6 +22,7 @@ The database file is: memory/long_term.db
 ─────────────────────────────────────────────────────────────────
 """
 
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -156,18 +157,48 @@ class LongTermMemory:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_as_context(self, keyword: str = "", n: int = 5) -> str:
+    def get_as_context(self, keyword: str = "", n: int = 5,
+                       query: str = "") -> str:
         """
         Return relevant facts as a plain string for prompt injection.
-        Uses keyword search if provided, else returns most recent.
+
+        Relevance strategy:
+          - If query provided: search all keywords from query, require ≥1 match
+          - If keyword only: single keyword search
+          - If neither: return empty — don't inject unrelated facts
         """
-        facts = (
-            self.search_by_keyword(keyword, limit=n)
-            if keyword
-            else self.get_recent(n=n)
-        )
+        facts = []
+
+        if query:
+            # Extract meaningful words from query (skip stopwords)
+            STOPWORDS = {"the","a","an","is","are","was","were","be","been",
+                         "i","my","me","you","we","it","this","that","what",
+                         "how","why","when","who","do","did","does","can",
+                         "will","would","could","should","have","has","had",
+                         "hey","hi","hello","nex","nexus","please","ok","and",
+                         "or","but","so","in","on","at","to","for","of","as"}
+            words = [w for w in re.sub(r'[^\w\s]', '', query.lower()).split()
+                     if w not in STOPWORDS and len(w) > 2]
+
+            if words:
+                # Search for each meaningful word, collect unique hits
+                seen = set()
+                for word in words[:5]:  # max 5 keyword searches
+                    hits = self.search_by_keyword(word, limit=n)
+                    for h in hits:
+                        if h["id"] not in seen:
+                            seen.add(h["id"])
+                            facts.append(h)
+                facts = facts[:n]  # cap at n
+
+        elif keyword and keyword.lower() not in {"hey","hi","hello","how","what","i"}:
+            facts = self.search_by_keyword(keyword, limit=n)
+
+        # If no matches found — return nothing, don't fall back to recent
+        # (recent facts are often unrelated and add noise)
         if not facts:
             return ""
+
         lines = ["── Long-term memory ──"]
         for f in facts:
             lines.append(f"  • {f['fact']}")

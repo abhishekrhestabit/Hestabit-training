@@ -4,9 +4,10 @@ __pycache__/
 *$py.class
 
 # Virtual environments
-venv/
+venv/ 
 .venv/
 env/
+
 
 # Tooling caches
 .pytest_cache/
@@ -20,7 +21,7 @@ dist/
 *.egg-info/
 
 # Environment and local config
-.env
+.env 
 .env.*
 .python-version
 
@@ -34,3 +35,4 @@ Thumbs.db
 # Runtime vector memory artifacts
 memory/memory.faiss
 memory/memory.json
+model.yaml

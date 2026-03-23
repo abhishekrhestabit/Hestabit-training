@@ -75,24 +75,33 @@ class SessionMemory:
         """Return the complete conversation history."""
         return [t.to_dict() for t in self._turns]
 
-    def get_context_string(self) -> str:
+    def get_context_string(self, max_chars_per_turn: int = 500) -> str:
         """
-        Return the last `window` turns as a plain string.
-        Used to inject into prompts.
+        Return the last `window` turns as a plain string for prompt injection.
+        Full content is stored in memory — this caps each turn for prompt size.
+        Set max_chars_per_turn=None to return full content.
         """
         lines = []
         for t in self._turns[-self._window:]:
-            prefix = "User" if t.role == "user" else "Assistant"
-            lines.append(f"{prefix}: {t.content}")
+            prefix  = "User" if t.role == "user" else "Assistant"
+            content = t.content
+            if max_chars_per_turn and len(content) > max_chars_per_turn:
+                content = content[:max_chars_per_turn] + "... [truncated for context]"
+            lines.append(f"{prefix}: {content}")
         return "\n".join(lines)
 
-    def recall_context(self) -> str:
+    def recall_context(self, full: bool = False) -> str:
         """
         Return session context formatted for prompt injection.
-        Empty string if no turns yet.
-        Called by the pipeline before every query.
+
+        full=False (default): caps each turn at 500 chars — use for new tasks
+                              where only a summary of history is needed.
+        full=True:            returns complete stored content — use for follow-up
+                              questions that reference the previous answer directly.
         """
-        ctx = self.get_context_string()
+        ctx = self.get_context_string(
+            max_chars_per_turn=None if full else 500
+        )
         if not ctx:
             return ""
         return f"── Recent conversation ──\n{ctx}"

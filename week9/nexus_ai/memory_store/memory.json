@@ -1,0 +1,262 @@
+[
+  {
+    "text": "Hey nexus My name is Abhishek Rai",
+    "timestamp": 1774188275.8807826,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is currently pursuing a structured learning path to transition from an AI enthusiast to an AI practitioner.",
+    "timestamp": 1774188385.126428,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is focusing his AI study plan on efficiency, multimodal LLMs, and agentic workflows.",
+    "timestamp": 1774188385.1720662,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is building foundational knowledge in Python, NumPy, Pandas, and PyTorch for AI development.",
+    "timestamp": 1774188385.236793,
+    "type": "fact"
+  },
+  {
+    "text": "The 2026 global business landscape is shifting from broad digital transformation to high-precision operational efficiency.",
+    "timestamp": 1774188888.0618205,
+    "type": "fact"
+  },
+  {
+    "text": "Enterprise AI adoption has moved past the initial enthusiast phase toward institutionalizing AI within core workflows.",
+    "timestamp": 1774188888.102178,
+    "type": "fact"
+  },
+  {
+    "text": "The industry is transitioning from generative AI (text/image creation) to Agentic AI, which focuses on autonomous decision-making and executing multi-step tasks.",
+    "timestamp": 1774188888.1442323,
+    "type": "fact"
+  },
+  {
+    "text": "The 2026 business environment transition is defined by a shift from experimental digital transformation to high-precision operational efficiency.",
+    "timestamp": 1774188990.0591545,
+    "type": "fact"
+  },
+  {
+    "text": "Enterprises are currently prioritizing the institutionalization of AI within their core operational workflows.",
+    "timestamp": 1774188990.0925648,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is targeting the development of an AI startup focused on agentic infrastructure.",
+    "timestamp": 1774190457.103586,
+    "type": "fact"
+  },
+  {
+    "text": "Successful AI startups are currently defined by their ability to provide high-utility agentic workflows rather than general-purpose generative tools.",
+    "timestamp": 1774190457.1138914,
+    "type": "fact"
+  },
+  {
+    "text": "The modern competitive advantage for AI startups is derived from proprietary data and unique workflow integration rather than model performance.",
+    "timestamp": 1774190457.1221542,
+    "type": "fact"
+  },
+  {
+    "text": "Enterprise AI success is increasingly tied to operational integration with legacy software stacks like ERP, CRM, and PLM.",
+    "timestamp": 1774190457.1305528,
+    "type": "fact"
+  },
+  {
+    "text": "The 'Industrialization' phase of AI favors companies that solve high-friction, data-heavy vertical problems over general productivity tools.",
+    "timestamp": 1774190457.139643,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is currently utilizing a system of AI agents, referred to as 'NEXUS', for strategic analysis and report generation.",
+    "timestamp": 1774190514.7580352,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai has formalized his strategic findings and market positioning into a document titled 'startup.md'.",
+    "timestamp": 1774190514.7672832,
+    "type": "fact"
+  },
+  {
+    "text": "Healthcare AI startups are prioritizing Revenue Cycle Management (RCM) and automated prior authorization to demonstrate immediate, quantifiable ROI.",
+    "timestamp": 1774191219.903226,
+    "type": "fact"
+  },
+  {
+    "text": "The most significant market gap in healthcare AI is the development of interoperability middleware to bridge autonomous agents with legacy Electronic Health Record (EHR) systems.",
+    "timestamp": 1774191219.9173827,
+    "type": "fact"
+  },
+  {
+    "text": "Enterprise healthcare adoption of AI requires 'compliance-by-design,' specifically immutable logging and audit trails for agent-driven decisions.",
+    "timestamp": 1774191219.9275646,
+    "type": "fact"
+  },
+  {
+    "text": "The healthcare AI sector is transitioning from administrative support tools toward semi-autonomous clinical decision support systems.",
+    "timestamp": 1774191219.9391172,
+    "type": "fact"
+  },
+  {
+    "text": "Healthcare AI success is now measured by the number of high-stakes, multi-step tasks completed autonomously without human intervention.",
+    "timestamp": 1774191927.3814986,
+    "type": "fact"
+  },
+  {
+    "text": "Modern healthcare AI startups are prioritizing vertical specialization, training models on highly specific clinical data rather than utilizing general-purpose foundational models.",
+    "timestamp": 1774191927.3922133,
+    "type": "fact"
+  },
+  {
+    "text": "The current healthcare AI market prioritizes preventative analytics tools that optimize patient outcomes to align with value-based care financial models.",
+    "timestamp": 1774191927.4019487,
+    "type": "fact"
+  },
+  {
+    "text": "Healthcare AI solutions that require users to switch contexts or open separate applications from their existing EHR workflow are experiencing significant adoption failures.",
+    "timestamp": 1774191927.4116747,
+    "type": "fact"
+  },
+  {
+    "text": "The primary industry metric for healthcare AI success in 2026 has shifted from model performance to the measurable reduction of administrative friction in hospital systems.",
+    "timestamp": 1774191927.4211063,
+    "type": "fact"
+  },
+  {
+    "text": "In 2026, LPG is positioned as a critical 'bridge fuel' for off-grid heating, cooking, and industrial processes where electrification is not yet feasible.",
+    "timestamp": 1774192272.0009847,
+    "type": "fact"
+  },
+  {
+    "text": "Emerging economies are driving a 3\u20134% year-over-year increase in household LPG consumption to replace biomass and reduce indoor air pollution.",
+    "timestamp": 1774192272.0355902,
+    "type": "fact"
+  },
+  {
+    "text": "Bio-LPG (Renewable LPG) is established as a 'drop-in' fuel in developed markets, allowing companies to meet Scope 1 emission targets without replacing gas-based machinery.",
+    "timestamp": 1774192272.0948627,
+    "type": "fact"
+  },
+  {
+    "text": "2026 regulatory frameworks for LPG require 'carbon intensity' certificates for shipments, necessitating methane-leak detection technology throughout the supply chain.",
+    "timestamp": 1774192272.1311421,
+    "type": "fact"
+  },
+  {
+    "text": "In developed markets, residential LPG boiler installations are being phased out in favor of heat pump technology, limiting LPG usage to industrial and commercial backup-power.",
+    "timestamp": 1774192272.1530666,
+    "type": "fact"
+  },
+  {
+    "text": "LPG logistics providers in 2026 are utilizing AI-driven demand forecasting to optimize last-mile delivery and reduce operational carbon footprints.",
+    "timestamp": 1774192272.1712797,
+    "type": "fact"
+  },
+  {
+    "text": "The LPG sector is increasingly adopting modular, IoT-enabled micro-storage solutions to support decentralized industrial energy microgrids.",
+    "timestamp": 1774192272.184992,
+    "type": "fact"
+  },
+  {
+    "text": "As of March 2026, RAG implementation standards emphasize a multi-stage architecture moving beyond basic vector search.",
+    "timestamp": 1774193012.9591527,
+    "type": "fact"
+  },
+  {
+    "text": "Modern production-grade RAG systems utilize 'parent-child indexing' to provide LLMs with full-context documents while retrieving small, precise chunks.",
+    "timestamp": 1774193012.9736533,
+    "type": "fact"
+  },
+  {
+    "text": "Standardized evaluation for 2026 RAG pipelines centers on the 'RAG Triad': Context Relevance, Groundedness, and Answer Relevance.",
+    "timestamp": 1774193012.986324,
+    "type": "fact"
+  },
+  {
+    "text": "Hybrid search, specifically combining BM25 keyword matching with vector similarity, is considered a foundational requirement for 2026-era RAG systems.",
+    "timestamp": 1774193012.9993136,
+    "type": "fact"
+  },
+  {
+    "text": "State-of-the-art RAG data ingestion requires vision-language models (VLMs) to effectively parse complex layouts like tables and diagrams.",
+    "timestamp": 1774193013.0111763,
+    "type": "fact"
+  },
+  {
+    "text": "The user is preparing for the JEE examination, targeting a 2026 completion date.",
+    "timestamp": 1774244593.8688695,
+    "type": "fact"
+  },
+  {
+    "text": "Effective high-intensity JEE preparation relies on a rigorous feedback loop characterized by the maintenance of an Error Log to categorize mistakes as calculation errors, conceptual gaps, or time-management issues.",
+    "timestamp": 1774244593.9227045,
+    "type": "fact"
+  },
+  {
+    "text": "Successful JEE test-taking strategy requires the synchronization of the student's biological clock with official exam session timings during the final phase of preparation.",
+    "timestamp": 1774244593.9737537,
+    "type": "fact"
+  },
+  {
+    "text": "The user's name is Abhishek Rai.",
+    "timestamp": 1774245839.3044658,
+    "type": "fact"
+  },
+  {
+    "text": "The user maintains a personal knowledge base file named 'jee.md' to track JEE preparation progress.",
+    "timestamp": 1774245839.3416777,
+    "type": "fact"
+  },
+  {
+    "text": "The user is currently engaged in a 10-day intensive preparation roadmap for the JEE 2026 examination.",
+    "timestamp": 1774245839.3835657,
+    "type": "fact"
+  },
+  {
+    "text": "Microsoft Access is used by the user as a primary RDBMS tool for rapid application development and data query analysis.",
+    "timestamp": 1774245947.0337582,
+    "type": "fact"
+  },
+  {
+    "text": "The current date of the user's research report is March 23, 2026.",
+    "timestamp": 1774245947.0776162,
+    "type": "fact"
+  },
+  {
+    "text": "LPG is defined as a 'transition fuel' and a 'bridge fuel' in 2026 global energy decarbonization roadmaps.",
+    "timestamp": 1774246079.945523,
+    "type": "fact"
+  },
+  {
+    "text": "The U.S. is the world\u2019s leading LPG exporter, while the Saudi Aramco Contract Price (CP) serves as the primary global pricing benchmark.",
+    "timestamp": 1774246079.9859858,
+    "type": "fact"
+  },
+  {
+    "text": "The global LPG market is facing supply chain bottlenecks due to Panama Canal water shortages and a limited supply of Very Large Gas Carriers (VLGCs).",
+    "timestamp": 1774246080.0497258,
+    "type": "fact"
+  },
+  {
+    "text": "Bio-LPG is being adopted as a 'drop-in' solution to lower carbon footprints for industrial users without requiring significant equipment capital investment.",
+    "timestamp": 1774246080.09976,
+    "type": "fact"
+  },
+  {
+    "text": "The Russia-Ukraine conflict has led to a realignment of global LPG trade routes, resulting in increased maritime insurance premiums and logistical complexity.",
+    "timestamp": 1774246080.1577492,
+    "type": "fact"
+  },
+  {
+    "text": "Abhishek Rai is currently based in or monitoring weather conditions for Noida, India.",
+    "timestamp": 1774246311.1716864,
+    "type": "fact"
+  },
+  {
+    "text": "Local meteorological conditions in Noida on March 23, 2026, feature a temperature range of 18\u00b0C to 34\u00b0C with a dry weather pattern.",
+    "timestamp": 1774246311.210595,
+    "type": "fact"
+  }
+]

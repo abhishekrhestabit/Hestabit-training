@@ -1,12 +1,17 @@
 """
 config/model_loader.py
 ─────────────────────────────────────────────────────────────────
-Reads model.yaml and returns the correct AutoGen 0.7.5
-model client.
+Single source of truth for model client creation.
+Used by Day 3, Day 4, and NEXUS AI.
+
+Key priority (highest → lowest):
+  1. Environment variable   export GEMINI_API_KEY=...
+  2. week9/.env file        GEMINI_API_KEY=...
+  3. model.yaml             gemini.api_key: ...
 
 Usage:
     from config.model_loader import get_model_client
-    model_client = get_model_client()
+    client = get_model_client()
 ─────────────────────────────────────────────────────────────────
 """
 
@@ -14,98 +19,140 @@ import os
 import yaml
 from pathlib import Path
 
+# Load .env from project root (week9/.env) — safe, no-op if missing
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
+except ImportError:
+    pass  # python-dotenv not installed — keys must be in env or model.yaml
+
 
 def _load_yaml() -> dict:
-    """Find and load model.yaml from project root."""
-    root = Path(__file__).resolve().parent.parent
+    root      = Path(__file__).resolve().parent.parent
     yaml_path = root / "model.yaml"
     if not yaml_path.exists():
         raise FileNotFoundError(f"model.yaml not found at {yaml_path}")
-    with open(yaml_path, "r") as f:
-        return yaml.safe_load(f)
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _resolve_key(yaml_value: str | None, env_var: str, label: str) -> str:
+    """
+    Resolve an API key with priority: env var > yaml value.
+
+    Handles three yaml patterns:
+      api_key: GEMINI_API_KEY          ← treat as env var name
+      api_key: ${GEMINI_API_KEY}       ← shell-style variable
+      api_key: actual_key_value        ← literal key (not recommended)
+    """
+    PLACEHOLDERS = {"", "YOUR_GEMINI_API_KEY_HERE", "YOUR_GROQ_API_KEY_HERE",
+                    "YOUR_TAVILY_API_KEY_HERE"}
+
+    # 1. Always check actual env var first (set by .env or export)
+    key = os.environ.get(env_var, "")
+    if key and key not in PLACEHOLDERS:
+        return key
+
+    # 2. Check yaml value
+    if yaml_value:
+        # Strip shell-style ${...} wrapper
+        raw = yaml_value.strip()
+        if raw.startswith("${") and raw.endswith("}"):
+            raw = raw[2:-1]
+
+        # If value looks like an env var name (ALL_CAPS_WITH_UNDERSCORES)
+        # treat it as a reference and look it up
+        import re as _re
+        if _re.match(r'^[A-Z][A-Z0-9_]+$', raw):
+            resolved = os.environ.get(raw, "")
+            if resolved and resolved not in PLACEHOLDERS:
+                return resolved
+        elif raw not in PLACEHOLDERS:
+            # Literal key value in yaml
+            return raw
+
+    raise ValueError(
+        f"{label} API key not set.\n"
+        f"Options (any of these work):\n"
+        f"  1. week9/.env file:    {env_var}=your_key\n"
+        f"  2. Export env var:     export {env_var}=your_key\n"
+        f"  3. model.yaml:         api_key: {env_var}  (references env var)\n"
+        f"                      or api_key: your_actual_key"
+    )
 
 
 def get_model_client():
     """
-    Returns an AutoGen-compatible model client based on model.yaml.
-
-    active_provider options:
-        "ollama"  → OllamaChatCompletionClient  (local, CPU-safe)
-        "gemini"  → OpenAIChatCompletionClient  (Google Gemini via REST)
-        "groq"    → OpenAIChatCompletionClient  (Groq cloud)
+    Returns an AutoGen 0.7.5 compatible model client based on model.yaml.
+    Supports: ollama | gemini | groq
     """
-    cfg = _load_yaml()
-    provider = cfg.get("active_provider", "ollama").lower()
+    cfg      = _load_yaml()
+    provider = (
+        os.environ.get("NEXUS_PROVIDER")
+        or cfg.get("active_provider", "ollama")
+    ).lower()
 
-    # ──────────────────────────────────────────
-    #  LOCAL — Ollama / Qwen
-    # ──────────────────────────────────────────
+    # ── Ollama (local) ────────────────────────────────────────────
     if provider == "ollama":
         from autogen_ext.models.ollama import OllamaChatCompletionClient
-
-        ollama_cfg = cfg["ollama"]
-        print(f"[ModelLoader] Using LOCAL Ollama → model: {ollama_cfg['model']}")
+        ollama_cfg = cfg.get("ollama", {})
+        model      = (os.environ.get("OLLAMA_MODEL")
+                      or ollama_cfg.get("model", "qwen2.5:7b-instruct-q4_K_M"))
+        base_url   = (os.environ.get("OLLAMA_BASE_URL")
+                      or ollama_cfg.get("base_url", "http://localhost:11434"))
+        print(f"[ModelLoader] Using LOCAL Ollama → model: {model}")
         return OllamaChatCompletionClient(
-            model=ollama_cfg["model"],
-            host=ollama_cfg.get("base_url", "http://localhost:11434"),
+            model=model,
+            host=base_url,
             model_info={
-            "vision": False,
-            "function_calling": True,
-            "json_output": True,
-            "family": "unknown",
-            "structured_output": True
-        }
-        )
-
-    # ──────────────────────────────────────────
-    #  API — Google Gemini
-    # ──────────────────────────────────────────
-    elif provider == "gemini":
-        from autogen_ext.models.openai import OpenAIChatCompletionClient
-
-        gemini_cfg = cfg["gemini"]
-        api_key = gemini_cfg.get("api_key") or os.environ.get("GEMINI_API_KEY", "")
-        if not api_key or api_key == "YOUR_GEMINI_API_KEY_HERE":
-            raise ValueError(
-                "Gemini API key not set. Edit model.yaml or set GEMINI_API_KEY env var."
-            )
-        print(f"[ModelLoader] Using Gemini API → model: {gemini_cfg['model']}")
-        return OpenAIChatCompletionClient(
-            model=gemini_cfg["model"],
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            model_capabilities={
-                "vision": False,
-                "function_calling": True,
-                "json_output": True,
+                "vision": False, "function_calling": True,
+                "json_output": True, "family": "unknown",
+                "structured_output": True,
             },
         )
 
-    # ──────────────────────────────────────────
-    #  API — Groq
-    # ──────────────────────────────────────────
+    # ── Gemini ────────────────────────────────────────────────────
+    elif provider == "gemini":
+        from autogen_ext.models.openai import OpenAIChatCompletionClient
+        gemini_cfg = cfg.get("gemini", {})
+        model      = (os.environ.get("GEMINI_MODEL")
+                      or gemini_cfg.get("model", "gemini-2.0-flash"))
+        api_key    = _resolve_key(
+            gemini_cfg.get("api_key"), "GEMINI_API_KEY", "Gemini"
+        )
+        print(f"[ModelLoader] Using Gemini API → model: {model}")
+        return OpenAIChatCompletionClient(
+            model=model,
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            model_capabilities={
+                "vision": False, "function_calling": True,
+                "json_output": True, "structured_output": True,
+            },
+        )
+
+    # ── Groq ──────────────────────────────────────────────────────
     elif provider == "groq":
         from autogen_ext.models.openai import OpenAIChatCompletionClient
-
-        groq_cfg = cfg["groq"]
-        api_key = groq_cfg.get("api_key") or os.environ.get("GROQ_API_KEY", "")
-        if not api_key or api_key == "YOUR_GROQ_API_KEY_HERE":
-            raise ValueError(
-                "Groq API key not set. Edit model.yaml or set GROQ_API_KEY env var."
-            )
-        print(f"[ModelLoader] Using Groq API → model: {groq_cfg['model']}")
+        groq_cfg = cfg.get("groq", {})
+        model    = (os.environ.get("GROQ_MODEL")
+                    or groq_cfg.get("model", "llama-3.3-70b-versatile"))
+        api_key  = _resolve_key(
+            groq_cfg.get("api_key"), "GROQ_API_KEY", "Groq"
+        )
+        print(f"[ModelLoader] Using Groq API → model: {model}")
         return OpenAIChatCompletionClient(
-            model=groq_cfg["model"],
+            model=model,
             api_key=api_key,
             base_url=groq_cfg.get("base_url", "https://api.groq.com/openai/v1"),
             model_capabilities={
-                "vision": False,
-                "function_calling": True,
-                "json_output": True,
+                "vision": False, "function_calling": True,
+                "json_output": True, "structured_output": True,
             },
         )
 
     else:
         raise ValueError(
-            f"Unknown provider '{provider}'. Choose: ollama | gemini | groq"
+            f"Unknown provider '{provider}'. "
+            f"Set active_provider to: ollama | gemini | groq"
         )
