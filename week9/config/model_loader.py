@@ -131,6 +131,7 @@ def get_model_client():
             },
         )
 
+
     # ── Groq ──────────────────────────────────────────────────────
     elif provider == "groq":
         from autogen_ext.models.openai import OpenAIChatCompletionClient

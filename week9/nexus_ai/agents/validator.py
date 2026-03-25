@@ -24,6 +24,14 @@ You are the Validator Agent in NEXUS AI.
 
 Critic checks quality. You check correctness — did it do what was asked?
 
+CRITICAL RULE — CURRENT EVENTS AND WEB SEARCH RESULTS:
+If the context contains "── Web Search Results" or references web searches,
+the Researcher has retrieved LIVE data from the internet.
+You MUST trust these search results over your own training knowledge.
+Your training data has a cutoff and may be outdated.
+DO NOT flag web search results as "hallucinations" — they are live data.
+DO NOT use your own knowledge to contradict search-backed answers.
+
 You will receive FACTUAL EVIDENCE collected by code analysis tools:
   - Which files exist on disk vs which were claimed but missing
   - Exact routes found in FastAPI/Flask code (via AST parsing)
@@ -44,7 +52,7 @@ Output raw JSON only, no fences:
   "final_output": "the best available output to pass to Reporter"
 }
 
-Base your score on the EVIDENCE, not on how confident the output sounds.\
+Base your score on EVIDENCE and SEARCH RESULTS, not on your training knowledge.\
 """
 
     # ── Deterministic helpers (no LLM) ───────────────────────────
@@ -237,13 +245,24 @@ Base your score on the EVIDENCE, not on how confident the output sounds.\
             evidence += f"\n{file_analysis}\n"
 
         # Step 4: LLM judges task correctness from factual evidence
-        # Use 9000 chars — research tasks produce large context and 1500 cuts it off
+        # Extract web search results from context if present — these are live data
+        web_results_block = ""
+        if "── Web Search Results" in context:
+            import re as _re
+            m = _re.search(r'(── Web Search Results.*?)(?=\n──|\Z)', context, _re.DOTALL)
+            if m:
+                web_results_block = (
+                    f"\nLIVE WEB SEARCH RESULTS (trust these over training knowledge):\n"
+                    f"{m.group(1)[:2000]}\n"
+                )
+
         raw = await self._llm(
             self.SYSTEM_PROMPT,
             f"Original user task:\n{original_task}\n\n"
             f"Factual evidence (trust this — collected by code analysis tools):\n"
-            f"{evidence}\n\n"
-            f"Context (full agent outputs):\n{context[:9000]}",
+            f"{evidence}\n"
+            f"{web_results_block}"
+            f"Context (full agent outputs):\n{context[:6000]}",
         )
         raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
 

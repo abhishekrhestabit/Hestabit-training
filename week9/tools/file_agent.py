@@ -127,7 +127,7 @@ def write_txt(file_path: str, text: str, append: bool = False) -> str:
     action = "Appended to" if append else "Written"
     with open(path, mode, encoding="utf-8") as f:
         f.write(text)
-    return f"✅ {action}: {file_path} ({len(text)} chars)"
+    return f"{action}: {file_path} ({len(text)} chars)"
 
 
 def write_csv(file_path: str, rows: list) -> str:
@@ -236,22 +236,3 @@ def read_file(file_path: str) -> str:
         return f"✅ Text: {file_path}  ({lines_n} lines)\n\n{content}"
 
 
-# ─────────────────────────────────────────────────────────────────
-#  Demo data
-# ─────────────────────────────────────────────────────────────────
-
-def create_sample_csv(file_path: str = "data/sales.csv") -> str:
-    """Create sample sales data. Idempotent."""
-    rows = [
-        {"product": "Widget A", "region": "North", "amount": "15000", "units": "300", "month": "Jan"},
-        {"product": "Widget B", "region": "South", "amount": "22000", "units": "440", "month": "Jan"},
-        {"product": "Widget A", "region": "East",  "amount": "18000", "units": "360", "month": "Feb"},
-        {"product": "Widget C", "region": "West",  "amount": "9500",  "units": "190", "month": "Feb"},
-        {"product": "Widget B", "region": "North", "amount": "31000", "units": "620", "month": "Mar"},
-        {"product": "Widget A", "region": "South", "amount": "27000", "units": "540", "month": "Mar"},
-        {"product": "Widget C", "region": "East",  "amount": "12000", "units": "240", "month": "Apr"},
-        {"product": "Widget B", "region": "West",  "amount": "19500", "units": "390", "month": "Apr"},
-        {"product": "Widget A", "region": "North", "amount": "33000", "units": "660", "month": "May"},
-        {"product": "Widget C", "region": "South", "amount": "8500",  "units": "170", "month": "May"},
-    ]
-    return write_csv(file_path, rows)

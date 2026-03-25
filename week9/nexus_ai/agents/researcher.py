@@ -7,35 +7,26 @@ import subprocess, sys, re
 from .base_agent import BaseAgent
 
 
-def _ensure_ddg():
+def web_search(query: str, max_results: int = 6) -> str:
+    """DuckDuckGo search via ddgs package."""
     try:
-        from duckduckgo_search import DDGS
-        return True
-    except ImportError:
-        subprocess.run([sys.executable, "-m", "pip", "install",
-                        "duckduckgo-search", "-q"], check=False)
-        try:
-            from duckduckgo_search import DDGS
-            return True
-        except Exception:
-            return False
-
-
-def web_search(query: str, max_results: int = 5) -> str:
-    """DuckDuckGo search — no API key needed."""
-    if not _ensure_ddg():
-        return "[web_search] duckduckgo-search not available."
-    try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         results = []
         with DDGS() as ddgs:
             for r in ddgs.text(query, max_results=max_results):
                 results.append(
-                    f"Title: {r.get('title','')}\n"
-                    f"URL:   {r.get('href','')}\n"
-                    f"Snippet: {r.get('body','')}\n"
+                    f"Title:   {r.get('title', '')}\n"
+                    f"URL:     {r.get('href', '')}\n"
+                    f"Snippet: {r.get('body', '')}\n"
                 )
-        return "\n---\n".join(results) if results else "No results found."
+        if not results:
+            return "No results found — DDG returned empty results."
+        try:
+            from nexus_ai.logger import log
+            log.info(f"DDG returned {len(results)} results", query=query[:60])
+        except Exception:
+            pass
+        return "\n---\n".join(results)
     except Exception as e:
         return f"[web_search ERROR] {e}"
 
@@ -101,12 +92,23 @@ RULES:
                 "given that", "for me", "in my case", "what would you",
             ])
 
-            # Needs fresh web data — new research topics
+            # Needs fresh web data
             needs_search = any(w in instruction.lower() for w in [
-                "research", "find", "search", "what is", "how does",
-                "explain", "describe", "information about", "latest",
-                "current state", "compare", "top 5", "best models",
-                "plan", "design", "architecture", "strategy",
+                # Research/analysis
+                "research", "find", "search", "information about",
+                "latest", "current state", "compare", "top 5",
+                "best models", "plan", "design", "architecture", "strategy",
+                # Factual questions that need current data
+                "who won", "who is", "who are", "who was",
+                "what won", "what is the", "what are the", "what happened",
+                "which team", "which country", "which player",
+                "when did", "when was", "when is",
+                "where is", "where was",
+                "how many", "how much", "how did",
+                "result", "score", "winner", "champion", "championship",
+                "tournament", "match", "game", "election", "president",
+                "ceo", "founder", "released", "launch", "announced",
+                "news", "update", "status",
             ])
 
             # Only search if it's a genuine research need AND not a follow-up
@@ -142,14 +144,24 @@ RULES:
         # Inject date into system prompt so LLM knows the current year
         system = (
             f"Today's date is {today_str}. "
-            f"When discussing trends, releases, or current state, always reference {current_year}.\n\n"
+            f"When discussing current events, always reference {current_year}.\n\n"
             + self.SYSTEM_PROMPT
         )
 
-        result = await self._llm(
-            system,
-            f"Instruction:\n{instruction}\n\nSources and context:\n{research_ctx}",
-        )
+        # If web results were retrieved, make the LLM use them explicitly
+        if "── Web Search Results" in research_ctx:
+            user_prompt = (
+                f"Instruction:\n{instruction}\n\n"
+                f"Sources and context:\n{research_ctx}\n\n"
+                f"IMPORTANT: Web search results are provided above. "
+                f"Base your answer PRIMARILY on these search results, not on prior training knowledge. "
+                f"If the results contain a definitive answer, state it clearly and directly. "
+                f"Provide a comprehensive, detailed response — do not summarise too briefly."
+            )
+        else:
+            user_prompt = f"Instruction:\n{instruction}\n\nSources and context:\n{research_ctx}"
+
+        result = await self._llm(system, user_prompt)
         log.agent(self.NAME, input_text=instruction, output_text=result,
                   duration=time.time() - t0, success=True)
         return result

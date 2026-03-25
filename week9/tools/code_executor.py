@@ -76,7 +76,7 @@ def auto_install_missing(code: str) -> list[str]:
             pass
 
         pip_name = IMPORT_TO_PIP.get(import_name, import_name)
-        print(f"  📦 Installing: {pip_name} ...", flush=True)
+        print(f"   Installing: {pip_name} ...", flush=True)
 
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", pip_name, "-q"],
@@ -85,11 +85,11 @@ def auto_install_missing(code: str) -> list[str]:
         )
 
         if result.returncode == 0:
-            print(f"  ✅ Installed: {pip_name}", flush=True)
+            print(f"   Installed: {pip_name}", flush=True)
             installed.append(pip_name)
         else:
             err = (result.stderr or result.stdout or "unknown error").strip()
-            print(f"  ❌ Failed to install {pip_name}: {err[:120]}", flush=True)
+            print(f"   Failed to install {pip_name}: {err[:120]}", flush=True)
 
     return installed
 

@@ -30,12 +30,12 @@ class C:
     MAGENTA= "\033[95m"
 
 def hdr(text):   print(f"\n{C.BOLD}{C.CYAN}{'─'*60}{C.RESET}\n{C.BOLD}{C.CYAN}  {text}{C.RESET}\n{'─'*60}")
-def ok(text):    print(f"  {C.GREEN}✅ {text}{C.RESET}")
-def warn(text):  print(f"  {C.YELLOW}⚠️  {text}{C.RESET}")
-def err(text):   print(f"  {C.RED}❌ {text}{C.RESET}")
+def ok(text):    print(f"  {C.GREEN} {text}{C.RESET}")
+def warn(text):  print(f"  {C.YELLOW} {text}{C.RESET}")
+def err(text):   print(f"  {C.RED} {text}{C.RESET}")
 def info(text):  print(f"  {C.GREY}{text}{C.RESET}")
 def step(n, t):  print(f"\n{C.BOLD}{C.BLUE}  [{n}] {t}{C.RESET}")
-def fixing(t):   print(f"  {C.MAGENTA}🔧 {t}{C.RESET}")
+def fixing(t):   print(f"  {C.MAGENTA} {t}{C.RESET}")
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -43,7 +43,6 @@ def fixing(t):   print(f"  {C.MAGENTA}🔧 {t}{C.RESET}")
 # ─────────────────────────────────────────────────────────────────
 
 async def llm(model_client, system: str, user: str) -> str:
-    """Single focused LLM call. Returns the text response."""
     response = await model_client.create(
         messages=[
             SystemMessage(content=system),
@@ -58,16 +57,15 @@ async def llm(model_client, system: str, user: str) -> str:
     return (content or "").strip()
 
 
-# ─────────────────────────────────────────────────────────────────
+
 #  STEP 1 — PLANNER
 #
-#  Two-phase approach (Cursor/Copilot style):
+#  Two-phase approach:
 #    Phase A — THINK: reason about what the query actually needs
 #    Phase B — PLAN:  produce the minimal task list from that reasoning
 #
 #  Phase A prevents the model from jumping straight to "read a file"
 #  when no file exists, or adding unnecessary tasks.
-# ─────────────────────────────────────────────────────────────────
 
 THINKER_SYSTEM = """\
 You are an expert at understanding what a user request truly requires.
@@ -191,7 +189,8 @@ async def plan(model_client, query: str) -> list[dict]:
         match = re.search(r'\[.*?\]', raw, re.DOTALL)
         if match:
             try:
-                tasks = json.loads(match.group())
+                tasks = json.loads(match.group\
+                     ())
             except Exception:
                 pass
 

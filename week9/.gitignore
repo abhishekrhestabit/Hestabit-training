@@ -35,4 +35,3 @@ Thumbs.db
 # Runtime vector memory artifacts
 memory/memory.faiss
 memory/memory.json
-model.yaml

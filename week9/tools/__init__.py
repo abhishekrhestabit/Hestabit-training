@@ -5,7 +5,6 @@ from .file_agent    import (
     read_txt, read_csv, read_json,
     write_txt, write_csv,
     read_file,
-    create_sample_csv,
 )
 
 __all__ = [
@@ -13,5 +12,4 @@ __all__ = [
     "query_database", "inspect_schema", "create_sample_sales_db",
     "read_txt", "read_csv", "read_json",
     "write_txt", "write_csv", "read_file",
-    "create_sample_csv",
 ]
