@@ -97,7 +97,7 @@ RULES:
                 # Research/analysis
                 "research", "find", "search", "information about",
                 "latest", "current state", "compare", "top 5",
-                "best models", "plan", "design", "architecture", "strategy",
+                "best models", "documentation", "docs", "reference",
                 # Factual questions that need current data
                 "who won", "who is", "who are", "who was",
                 "what won", "what is the", "what are the", "what happened",

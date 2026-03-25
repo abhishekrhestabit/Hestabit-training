@@ -27,6 +27,10 @@ RULES:
   - Be thorough but not padded — every sentence must add value
   - Use Markdown formatting for structure
   - Start directly with the content — no "Here is your report:" preamble
+  - For code/system tasks, include concrete implementation details, key modules/files, and important behaviors
+  - If file paths, endpoints, schemas, or architecture decisions are known, mention them explicitly
+  - Avoid shallow summaries; prefer a concise but substantive walkthrough
+  - For substantial code/system tasks, cover what was built, the important files, and how the pieces work together
   - End with a ## Summary or ## Next Steps section\
 """
 

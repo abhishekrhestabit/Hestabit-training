@@ -16,4 +16,4 @@ gemini:
 groq:
   model: "llama-3.3-70b-versatile"
   base_url: "https://api.groq.com/openai/v1"
-  # api_key loaded from .env → GROQ_API_KEY
+  api_key: GROQ_API_KEY

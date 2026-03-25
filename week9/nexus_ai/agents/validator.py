@@ -42,6 +42,7 @@ Use this evidence to answer:
   1. DELIVERABLES — right files, right folder, right format?
   2. TASK MATCH — does it solve the actual problem stated?
   3. COMPLETENESS — are all required pieces present per the evidence?
+  4. DEPTH — placeholder files, tiny stub modules, or "defined elsewhere" files do NOT count as a full implementation
 
 Output raw JSON only, no fences:
 {
@@ -125,6 +126,24 @@ Base your score on EVIDENCE and SEARCH RESULTS, not on your training knowledge.\
                     source = p.read_text(encoding="utf-8")
                     tree   = _ast.parse(source)
                     section.append("  ✅ Syntax: valid")
+                    section.append(f"  Lines: {len(source.splitlines())}")
+
+                    placeholder_markers = [
+                        "defined in execution script",
+                        "placeholder",
+                        "todo:",
+                        "implementation omitted",
+                    ]
+                    matched_markers = [
+                        marker for marker in placeholder_markers
+                        if marker in source.lower()
+                    ]
+                    if len(source.splitlines()) < 8:
+                        section.append("  ⚠️  Very short Python file — may be incomplete")
+                    if matched_markers:
+                        section.append(
+                            "  ⚠️  Placeholder-like content: " + ", ".join(matched_markers)
+                        )
 
                     routes = []
                     for node in _ast.walk(tree):
@@ -304,9 +323,11 @@ Base your score on EVIDENCE and SEARCH RESULTS, not on your training knowledge.\
         if "final_output" not in result:
             result["final_output"] = context
 
-        log.agent(self.NAME, input_text=original_task[:200], output_text=raw,
+        log.agent(self.NAME, input_text=original_task[:200],
+                  output_text=json.dumps(result, ensure_ascii=False),
                   duration=time.time() - t0, success=True,
                   extra={
+                      "raw_output":      raw[:500],
                       "approved":       result.get("approved"),
                       "score":          result.get("score"),
                       "missing_files":  missing,

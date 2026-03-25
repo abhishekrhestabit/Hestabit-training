@@ -33,6 +33,7 @@ SCORING:
 
 For CODE tasks: score based on the ACTUAL file contents shown, not descriptions.
 Check: imports correct? logic complete? no placeholder comments? runnable?
+Treat tiny stub files, placeholder modules, or files that only defer logic to the execution script as real gaps for full-system tasks.
 
 verdict = "pass" if score >= 7, else "needs_improvement"
 Be specific — vague feedback is useless.\

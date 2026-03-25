@@ -27,6 +27,50 @@ except ImportError:
     pass  # python-dotenv not installed — keys must be in env or model.yaml
 
 
+def _build_model_info(family: str = "unknown") -> dict:
+    """Shared AutoGen model metadata for custom/non-native providers."""
+    return {
+        "vision": False,
+        "function_calling": True,
+        "json_output": True,
+        "family": family,
+        "structured_output": True,
+        "multiple_system_messages": True,
+    }
+
+
+def _infer_family(provider: str, model: str) -> str:
+    """
+    Best-effort family mapping for AutoGen.
+    Falls back to "unknown" for preview/custom names.
+    """
+    from autogen_core.models import ModelFamily
+
+    normalized = model.lower()
+
+    if provider == "gemini":
+        if "gemini-2.5-flash" in normalized:
+            return ModelFamily.GEMINI_2_5_FLASH
+        if "gemini-2.5-pro" in normalized:
+            return ModelFamily.GEMINI_2_5_PRO
+        if "gemini-2.0-flash" in normalized:
+            return ModelFamily.GEMINI_2_0_FLASH
+        return ModelFamily.UNKNOWN
+
+    if provider == "groq":
+        if "llama-3.3-70b" in normalized:
+            return ModelFamily.LLAMA_3_3_70B
+        if "llama-3.3-8b" in normalized:
+            return ModelFamily.LLAMA_3_3_8B
+        if "llama-4-maverick" in normalized:
+            return ModelFamily.LLAMA_4_MAVERICK
+        if "llama-4-scout" in normalized:
+            return ModelFamily.LLAMA_4_SCOUT
+        return ModelFamily.UNKNOWN
+
+    return ModelFamily.UNKNOWN
+
+
 def _load_yaml() -> dict:
     root      = Path(__file__).resolve().parent.parent
     yaml_path = root / "model.yaml"
@@ -81,14 +125,15 @@ def _resolve_key(yaml_value: str | None, env_var: str, label: str) -> str:
     )
 
 
-def get_model_client():
+def get_model_client(provider_override: str | None = None):
     """
     Returns an AutoGen 0.7.5 compatible model client based on model.yaml.
     Supports: ollama | gemini | groq
     """
     cfg      = _load_yaml()
     provider = (
-        os.environ.get("NEXUS_PROVIDER")
+        provider_override
+        or os.environ.get("NEXUS_PROVIDER")
         or cfg.get("active_provider", "ollama")
     ).lower()
 
@@ -104,11 +149,7 @@ def get_model_client():
         return OllamaChatCompletionClient(
             model=model,
             host=base_url,
-            model_info={
-                "vision": False, "function_calling": True,
-                "json_output": True, "family": "unknown",
-                "structured_output": True,
-            },
+            model_info=_build_model_info(),
         )
 
     # ── Gemini ────────────────────────────────────────────────────
@@ -125,10 +166,7 @@ def get_model_client():
             model=model,
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            model_capabilities={
-                "vision": False, "function_calling": True,
-                "json_output": True, "structured_output": True,
-            },
+            model_info=_build_model_info(_infer_family("gemini", model)),
         )
 
 
@@ -146,10 +184,7 @@ def get_model_client():
             model=model,
             api_key=api_key,
             base_url=groq_cfg.get("base_url", "https://api.groq.com/openai/v1"),
-            model_capabilities={
-                "vision": False, "function_calling": True,
-                "json_output": True, "structured_output": True,
-            },
+            model_info=_build_model_info(_infer_family("groq", model)),
         )
 
     else:

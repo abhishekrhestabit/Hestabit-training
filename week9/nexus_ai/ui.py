@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
-from nexus_ai.config       import get_model_client, ACTIVE_PROVIDER, OLLAMA_MODEL, GEMINI_MODEL
+from nexus_ai.config       import get_model_client, get_runtime_model, get_runtime_provider
 from nexus_ai.orchestrator import NexusOrchestrator
 
 
@@ -194,8 +194,8 @@ with st.sidebar:
     st.markdown("*Autonomous Multi-Agent System*")
     st.divider()
 
-    model_label = OLLAMA_MODEL if ACTIVE_PROVIDER == "ollama" else GEMINI_MODEL
-    st.markdown(f"**Provider:** `{ACTIVE_PROVIDER.upper()}`")
+    model_label = get_runtime_model()
+    st.markdown(f"**Provider:** `{get_runtime_provider().upper()}`")
     st.markdown(f"**Model:** `{model_label}`")
     st.divider()
 

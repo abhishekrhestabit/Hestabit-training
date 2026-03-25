@@ -1,66 +1,102 @@
 import asyncio
+import pandas as pd
+import os
+from typing import List
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_ext.models.ollama import OllamaChatCompletionClient
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.messages import TextMessage
 
-from agents.research_agent import get_research_agent
-from agents.summarizer_agent import get_summarizer_agent
-from agents.answer_agent import get_answer_agent
+# --- AGENT MODULE DEFINITIONS ---
 
-async def main():
-    # 1. Instantiate the native Ollama client
-    model_client = OllamaChatCompletionClient(
-        model="qwen2.5:3b", 
-        model_info={
-            "vision": False,
-            "function_calling": True,
-            "json_output": True,
-            "family": "unknown",
-            "structured_output": True
-        }
+def get_research_agent(model_client, model_context):
+    return AssistantAgent(
+        name="researcher",
+        model_client=model_client,
+        model_context=model_context,
+        system_message="You are a data researcher. Analyze provided CSV metrics to identify trends, outliers, and data structures."
     )
 
-    # 2. Instantiate the Agents 
-    # (Remember, your agents should have model_context=BufferedChatCompletionContext(buffer_size=10) in their files!)
-    researcher = get_research_agent(model_client)
-    summarizer = get_summarizer_agent(model_client)
-    answerer = get_answer_agent(model_client)
+def get_summarizer_agent(model_client, model_context):
+    return AssistantAgent(
+        name="summarizer",
+        model_client=model_client,
+        model_context=model_context,
+        system_message="You are a summarizer. Condense analytical insights into concise, actionable summaries for the user."
+    )
 
-    # 3. Create the Sequential Pipeline
-    # MaxMessageTermination(max_messages=4) ensures the loop stops after exactly:
-    # 1. User -> 2. Researcher -> 3. Summarizer -> 4. Answerer
+def get_answer_agent(model_client, model_context):
+    return AssistantAgent(
+        name="answerer",
+        model_client=model_client,
+        model_context=model_context,
+        system_message="You are an expert communicator. Answer user questions directly based on the data analysis performed by your team."
+    )
+
+# --- MAIN LOGIC ---
+
+def load_csv_data(file_path: str):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The file {file_path} was not found.")
+    
+    df = pd.read_csv(file_path)
+    # Return only essential metadata to save tokens
+    summary = (
+        f"DATASET METADATA:\n"
+        f"- Columns: {list(df.columns)}\n"
+        f"- Row Count: {len(df)}\n"
+        f"- Column Types:\n{df.dtypes.to_string()}\n"
+        f"- Descriptive Stats (Sample):\n{df.describe().iloc[[0, 1, 3, 7]].to_string()}"
+    )
+    return summary
+
+async def main():
+    model_client = OllamaChatCompletionClient(
+        model="qwen2.5:3b", 
+        model_info={"vision": False, "function_calling": True, "json_output": True}
+    )
+
+    file_path = input("Enter the path to your CSV file: ").strip()
+    try:
+        csv_metadata = load_csv_data(file_path)
+    except Exception as e:
+        print(f"\n[ERROR] Failed to load CSV: {e}")
+        return
+
+    # Use a system message in the context to hold the CSV metadata permanently
+    # This avoids re-sending it with every user message
+    system_msg = TextMessage(content=f"You have access to the following CSV metadata:\n{csv_metadata}", source="system")
+    
+    # Initialize agents with a context that starts with the metadata
+    from autogen_agentchat.base import BufferedChatCompletionContext
+    context = BufferedChatCompletionContext(buffer_size=15)
+    await context.add_message(system_msg)
+    
+    researcher = get_research_agent(model_client, context)
+    summarizer = get_summarizer_agent(model_client, context)
+    answerer = get_answer_agent(model_client, context)
+
     termination = MaxMessageTermination(max_messages=4)
     team = RoundRobinGroupChat(
         participants=[researcher, summarizer, answerer], 
         termination_condition=termination
     )
 
-    print("==================================================")
-    print("NEXUS AI - DAY 1 PIPELINE ONLINE")
-    print("Type 'exit' or 'quit' to shut down the system.")
-    print("==================================================\n")
+    print("\n[SYSTEM] CSV metadata ingested into agent context.")
 
-    # 4. The Live CLI Loop
     while True:
-        # Get live input from the user
-        user_query = input("\n[USER] Enter your query: ")
-        
-        # Check if the user wants to quit
+        user_query = input("\n[USER] Ask a question about the data (or 'exit'): ")
         if user_query.lower() in ['exit', 'quit']:
-            print("\nShutting down pipeline...")
             break
             
-        print("\n" + "-" * 50)
-        
-        # Run the team workflow for this specific query
-        result = await team.run(task=user_query)
-        
-        # Print only the agent responses from THIS turn (skipping the user's own prompt)
-        for msg in result.messages:
-            # We don't need to print the user's message again, only the agents
-            if msg.source != "user":
-                print(f"\n[{msg.source.upper()}] says:\n{msg.content}\n")
-                print("-" * 50)
+        try:
+            result = await team.run(task=user_query)
+            for msg in result.messages:
+                if msg.source != "user" and msg.source != "system":
+                    print(f"\n[{msg.source.upper()}] says:\n{msg.content}\n")
+        except Exception as e:
+            print(f"\n[ERROR] Team processing failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

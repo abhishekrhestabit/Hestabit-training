@@ -9,7 +9,11 @@ from pathlib import Path
 # ── Path setup — allows importing tools/, memory/, config/ from parent ──
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from nexus_ai.config       import get_model_client, ACTIVE_PROVIDER, OLLAMA_MODEL, GEMINI_MODEL
+from nexus_ai.config       import (
+    get_model_client,
+    get_runtime_model,
+    get_runtime_provider,
+)
 from nexus_ai.orchestrator import NexusOrchestrator
 from nexus_ai.logger       import log
 
@@ -112,8 +116,8 @@ async def run_cli():
     print(BANNER)
     print(EXAMPLES)
 
-    model = OLLAMA_MODEL if ACTIVE_PROVIDER == "ollama" else GEMINI_MODEL
-    info(f"Provider: {ACTIVE_PROVIDER.upper()} | Model: {model}")
+    model = get_runtime_model()
+    info(f"Provider: {get_runtime_provider().upper()} | Model: {model}")
     info("Initialising agents...")
 
     client = get_model_client()
@@ -175,7 +179,7 @@ async def run_cli():
                 info("No trace yet.")
             continue
         if query.lower() == "/model":
-            info(f"Provider: {ACTIVE_PROVIDER} | Model: {model}")
+            info(f"Provider: {get_runtime_provider()} | Model: {get_runtime_model()}")
             continue
 
         # Parse explicit flags (/file, /db, /save)

@@ -5,6 +5,7 @@ Breaks the user task into a structured sub-task list for other agents.
 
 import json, re
 from .base_agent import BaseAgent
+from nexus_ai.task_utils import is_local_build_task
 
 
 class PlannerAgent(BaseAgent):
@@ -39,6 +40,13 @@ ROUTING RULES:
   If [Memory context] contains data relevant to the question:
     → Use Researcher (it will answer from memory, no web search)
     → Then Reporter. Do NOT add Analyst/Critic for simple follow-ups.
+  Local backend/API/CRUD/database generation tasks:
+    → Prefer Coder first
+    → Add Analyst only if data/schema inspection is genuinely needed
+    → Do NOT use Researcher unless the user explicitly asks for latest/current
+      information, comparisons, external references, or documentation lookups
+    → For full system requests, tell Coder to create a multi-file project
+      with the main modules the task implies, not a toy single-file script
   CSV → SQLite → query:
     Step 1: Analyst  (read CSV, understand columns and data)
     Step 2: Coder    (create .db from CSV using Python)
@@ -50,6 +58,8 @@ ROUTING RULES:
 
 RULES:
   - Only include agents actually needed for this task
+  - Prefer the smallest plan that can complete the task reliably
+  - Be flexible: if one strong agent can do a step well, do not split it unnecessarily
   - Simple questions: 2-3 agents. Complex tasks: 4-6 agents.
   - Always end with Reporter
   - MANDATORY: Include Critic + Optimizer for ALL code generation tasks
@@ -59,6 +69,7 @@ RULES:
   - Instructions must be specific, not vague
   - For code tasks: Coder instructions must say "write files to disk using
     open() — do NOT start a server or run uvicorn/flask"
+  - For fix plans: return only the agents needed to directly fix the flagged issue
 
 Raw JSON only. No explanation.\
 """
@@ -76,6 +87,43 @@ Raw JSON only. No explanation.\
                     return json.loads(m.group())
                 except Exception:
                     pass
+        if is_local_build_task(task):
+            return {
+                "task_type": "code",
+                "complexity": "medium",
+                "agents_needed": ["Coder", "Critic", "Optimizer", "Validator", "Reporter"],
+                "steps": [
+                    {
+                        "step": 1,
+                        "agent": "Coder",
+                        "instruction": (
+                            "Create a complete multi-file implementation for this task. "
+                            "Write files to disk using open() — do NOT start a server or run uvicorn/flask."
+                        ),
+                    },
+                    {
+                        "step": 2,
+                        "agent": "Critic",
+                        "instruction": "Review the generated implementation for completeness, correctness, and missing modules.",
+                    },
+                    {
+                        "step": 3,
+                        "agent": "Optimizer",
+                        "instruction": "Improve the implementation based on Critic feedback.",
+                    },
+                    {
+                        "step": 4,
+                        "agent": "Validator",
+                        "instruction": "Check that the implementation actually fulfills the task requirements.",
+                    },
+                    {
+                        "step": 5,
+                        "agent": "Reporter",
+                        "instruction": "Write a clear final summary of what was built.",
+                    },
+                ],
+                "final_output_format": "code",
+            }
         # Fallback plan
         return {
             "task_type": "mixed",
