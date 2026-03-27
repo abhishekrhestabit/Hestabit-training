@@ -10,11 +10,6 @@ from nexus_ai.config import (
     MAX_QUALITY_RETRIES,
     MIN_QUALITY_SCORE,
     POST_VALIDATION_REPLAN_MAX_SCORE,
-    get_fallback_providers,
-    get_model_client,
-    get_runtime_client,
-    get_runtime_provider,
-    set_runtime_client,
 )
 from nexus_ai.agents import (
     AnalystAgent,
@@ -26,12 +21,17 @@ from nexus_ai.agents import (
     ResearcherAgent,
     ValidatorAgent,
 )
+from nexus_ai.agents.base_agent import call_model_with_fallback
 from nexus_ai.logger import log
 from nexus_ai.pipeline_state import PipelineState
 from nexus_ai.task_utils import (
+    MEMORY_FOLLOWUP_SIGNALS,
+    append_context_block,
+    build_agent_context,
+    combine_context,
+    detect_save_target,
     is_local_build_task,
     is_simple_task,
-    needs_explicit_research,
     slugify_task,
 )
 from nexus_ai.workspace_manager import create_task_workspace
@@ -48,29 +48,6 @@ except ImportError:
 
 
 class NexusOrchestrator:
-    FOLLOWUP_CONTEXT_SIGNALS = [
-        "based on the above", "based on that", "based on this",
-        "previous answer", "previous output", "continue this",
-        "continue from", "extend this", "extend the", "integrate",
-        "merge", "combine", "refactor this", "use the above",
-        "the code above", "the earlier", "what you just",
-        "you just said", "from the previous",
-    ]
-
-    MEMORY_FOLLOWUP_SIGNALS = [
-        "save this", "save the", "save it", "save as",
-        "based on that", "based on the above", "from the above",
-        "the above", "previous answer", "that report", "this report",
-        "what you just", "you just said", "you mentioned",
-        "expand on", "elaborate on", "more detail on",
-        "summarise the", "summarize the",
-    ]
-
-    FILE_REF_PATTERN = re.compile(
-        r"(?:(?:[\w\-]+/)*)[\w\-]+\.(?:py|txt|md|yaml|yml|json|html|js|ts|css|db|csv)",
-        re.I,
-    )
-
     def __init__(self, model_client):
         self.client = model_client
         self.planner = PlannerAgent(model_client)
@@ -88,39 +65,6 @@ class NexusOrchestrator:
             "Reporter": self.reporter,
         }
         self._init_memory()
-
-    @staticmethod
-    def _stringify_output(output: Any) -> str:
-        if isinstance(output, str):
-            return output
-        try:
-            return json.dumps(output, indent=2, ensure_ascii=False)
-        except Exception:
-            return str(output)
-
-    @staticmethod
-    def _combine_context(*parts: str) -> str:
-        return "\n\n".join(part.strip() for part in parts if part and part.strip())
-
-    @staticmethod
-    def _append_context_block(context: str, label: str, output: Any) -> str:
-        block = f"── {label} ──\n{NexusOrchestrator._stringify_output(output)}"
-        return f"{context}\n\n{block}".strip() if context else block
-
-    @staticmethod
-    def _agent_base_name(agent_name: str) -> str:
-        return agent_name.split(" (", 1)[0]
-
-    @staticmethod
-    def _is_retryable_provider_error(error: Exception) -> bool:
-        text = str(error).lower()
-        signals = [
-            "rate limit", "rate_limit", "429", "quota",
-            "resource exhausted", "too many requests", "503",
-            "service unavailable", "currently experiencing high demand",
-            "unavailable", "overloaded",
-        ]
-        return any(signal in text for signal in signals)
 
     def _emit(self, state: PipelineState, step: str, content: str, output: str = "") -> None:
         if state.on_update:
@@ -161,13 +105,13 @@ class NexusOrchestrator:
         )
 
     def _prepend_base_context(self, state: PipelineState, text: str) -> None:
-        state.base_context = self._combine_context(text, state.base_context)
+        state.base_context = combine_context(text, state.base_context)
 
     def _prepare_memory(self, state: PipelineState) -> None:
         if not (self.session and self.vector and self.ltm):
             return
 
-        needs_full = any(signal in state.task.lower() for signal in self.MEMORY_FOLLOWUP_SIGNALS)
+        needs_full = any(signal in state.task.lower() for signal in MEMORY_FOLLOWUP_SIGNALS)
         parts = []
         session_context = self.session.recall_context(full=needs_full)
         vector_context = self.vector.recall_context(state.task)
@@ -205,11 +149,18 @@ class NexusOrchestrator:
             "Return the label only."
         )
         try:
-            raw = await self._llm_call(self.client, system, state.task)
+            raw = await self._call_nexus_llm(system, state.task)
         except Exception:
             raw = state.task
         label = slugify_task(raw)
         return label or slugify_task(state.task)
+
+    async def _call_nexus_llm(self, system: str, user: str) -> str:
+        result, client = await call_model_with_fallback(
+            self.client, system, user, source="nexus", agent="NEXUS"
+        )
+        self.client = client
+        return result
 
     async def _ensure_task_workspace(self, state: PipelineState) -> None:
         if state.task_workspace_rel and state.task_workspace_abs:
@@ -235,32 +186,7 @@ class NexusOrchestrator:
 
     @staticmethod
     def _detect_save(text: str) -> str | None:
-        filename = re.search(r"[\w./\-]+\.(?:md|txt|py|json|yaml|yml|html|csv)", text, re.I)
-        if not filename:
-            return None
-
-        lowered = text.lower()
-
-        explicit_patterns = [
-            r"\bsave\b.{0,80}\b(?:to|as|in)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\bstore\b.{0,80}\b(?:to|as|in)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\bexport\b.{0,80}\b(?:to|as|in)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\bdump\b.{0,80}\b(?:to|as|in)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\bwrite\b.{0,80}\b(?:to|into|in|as)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\bput\b.{0,80}\b(?:to|into|in)\b.{0,80}" + re.escape(filename.group(0).lower()),
-            r"\b" + re.escape(filename.group(0).lower()) + r"\b.{0,40}\b(?:save|store|export|dump)\b",
-        ]
-        if not any(re.search(pattern, lowered, re.DOTALL) for pattern in explicit_patterns):
-            return None
-
-        ref_words = [
-            "this", "it", "that", "the report", "the answer",
-            "the analysis", "the above", "previous", "last",
-            "generated", "findings", "result", "content", "there",
-        ]
-        if not any(word in lowered for word in ref_words):
-            return None
-        return filename.group(0)
+        return detect_save_target(text)
 
     def _build_result(self, state: PipelineState, answer: str, *, score: int, approved: bool) -> dict:
         duration = time.time() - state.started_at
@@ -306,8 +232,7 @@ class NexusOrchestrator:
             "If memory context is provided, use it to personalise your response.\n"
             "Do not mention agents, pipelines, or internal systems."
         )
-        answer = await self._llm_call(
-            self.client,
+        answer = await self._call_nexus_llm(
             system,
             f"{state.task}\n\n{state.base_context}" if state.base_context else state.task,
         )
@@ -329,47 +254,11 @@ class NexusOrchestrator:
         self._record_trace(state, "NEXUS (direct)", answer)
         return self._build_result(state, answer, score=10, approved=True)
 
-    def _should_skip_researcher(self, state: PipelineState, steps: list[dict]) -> bool:
-        if state.file_path:
-            return False
-        step_agents = {step.get("agent", "") for step in steps}
-        if "Researcher" not in step_agents:
-            return False
-        if "Coder" not in step_agents and "Analyst" not in step_agents:
-            return False
-        return is_local_build_task(state.task) and not needs_explicit_research(state.task)
-
     def _normalize_plan_steps(self, state: PipelineState, steps: list[dict]) -> list[dict]:
         normalized = list(steps)
-        if self._should_skip_researcher(state, normalized):
-            normalized = [step for step in normalized if step.get("agent") != "Researcher"]
         for idx, step in enumerate(normalized, 1):
             step["step"] = idx
         return normalized
-
-    def _ensure_quality_agents(self, state: PipelineState) -> None:
-        steps = state.plan.get("steps", [])
-        agent_names = [step["agent"] for step in steps]
-        has_coder = "Coder" in agent_names
-        has_critic = "Critic" in agent_names
-        complexity = state.plan.get("complexity", "simple")
-        if not ((has_coder or complexity != "simple") and not has_critic):
-            return
-
-        reporter_idx = next(
-            (idx for idx, step in enumerate(steps) if step["agent"] == "Reporter"),
-            len(steps),
-        )
-        steps.insert(
-            reporter_idx,
-            {"step": 0, "agent": "Optimizer", "instruction": "Improve the output based on Critic feedback"},
-        )
-        steps.insert(
-            reporter_idx,
-            {"step": 0, "agent": "Critic", "instruction": f"Review quality, completeness, and correctness for: {state.task[:100]}"},
-        )
-        state.plan["steps"] = self._normalize_plan_steps(state, steps)
-        self._emit(state, "Planner", "⚠️  Critic not in plan — injected automatically")
 
     def _render_plan_text(self, state: PipelineState) -> str:
         steps = state.plan.get("steps", [])
@@ -387,70 +276,30 @@ class NexusOrchestrator:
     async def _build_plan(self, state: PipelineState) -> None:
         self._emit(state, "Planner", "Building execution plan...")
         today = datetime.now().strftime("%B %d, %Y")
-        state.plan = await self.planner.run(f"[Today's date: {today}]\n{state.task}")
+        planner_context = []
+        if state.file_path:
+            planner_context.append(f"[Provided file path]\n{state.file_path}")
+        if state.db_path:
+            planner_context.append(f"[Provided database path]\n{state.db_path}")
+        if state.base_context:
+            planner_context.append(state.base_context)
+        state.plan = await self.planner.run(
+            f"[Today's date: {today}]\n{state.task}",
+            combine_context(*planner_context),
+        )
         state.plan["steps"] = self._normalize_plan_steps(state, state.plan.get("steps", []))
-        self._ensure_quality_agents(state)
         self._record_trace(state, "Planner", str(state.plan))
         self._emit(state, "__output__", "Planner", self._render_plan_text(state))
 
-    def _trim_text(self, text: str, max_chars: int = 1200) -> str:
-        if len(text) <= max_chars:
-            return text
-        head = max_chars // 2
-        tail = max_chars - head - 32
-        return text[:head].rstrip() + f"\n...[trimmed {len(text) - max_chars} chars]...\n" + text[-tail:].lstrip()
-
-    def _collect_file_refs(self, state: PipelineState) -> list[str]:
-        pool = [state.base_context, state.context]
-        pool.extend(self._stringify_output(item.get("output", "")) for item in state.trace)
-        refs = set()
-        for chunk in pool:
-            refs.update(self.FILE_REF_PATTERN.findall(chunk or ""))
-            refs.update(re.findall(r"(?:Created|Updated|Wrote|Generated)\s+([\w./\-]+\.\w+)", chunk or "", re.I))
-        return sorted(refs)[:20]
-
-    def _should_use_full_context(self, agent_name: str, task: str, instruction: str, full_context: str) -> bool:
-        if len(full_context) <= 5000:
-            return True
-        combined = f"{task}\n{instruction}".lower()
-        if any(signal in combined for signal in self.FOLLOWUP_CONTEXT_SIGNALS):
-            return True
-        if agent_name == "Coder" and any(signal in combined for signal in ["integrate", "merge", "combine", "refactor", "extend"]):
-            return True
-        return False
-
     def _build_agent_context(self, state: PipelineState, agent_name: str, instruction: str) -> str:
-        full_context = state.combined_context
-        if not full_context:
-            return ""
-        if self._should_use_full_context(agent_name, state.task, instruction, full_context):
-            return full_context
-
-        relevant_agents = {
-            "Planner": {"Planner", "Researcher", "Coder", "Analyst", "Critic", "Validator", "Optimizer"},
-            "Researcher": {"Researcher", "Analyst", "Validator"},
-            "Coder": {"Researcher", "Analyst", "Coder", "Critic", "Validator"},
-            "Analyst": {"Researcher", "Coder", "Analyst", "Validator"},
-            "Critic": {"Researcher", "Coder", "Analyst", "Optimizer", "Validator"},
-            "Optimizer": {"Coder", "Analyst", "Critic", "Validator"},
-            "Validator": {"Researcher", "Coder", "Analyst", "Critic", "Optimizer"},
-        }
-        block_limit = {"Planner": 4, "Researcher": 3, "Coder": 4, "Analyst": 4, "Critic": 5, "Optimizer": 4, "Validator": 6}
-        selected = [
-            item for item in state.trace
-            if self._agent_base_name(item.get("agent", "")) in relevant_agents.get(agent_name, set())
-        ][-block_limit.get(agent_name, 4):]
-
-        parts = [state.base_context.strip()] if state.base_context else []
-        refs = self._collect_file_refs(state)
-        if refs:
-            parts.append("── Referenced files ──\n" + "\n".join(refs))
-        for item in selected:
-            label = item.get("agent", "Agent")
-            body = self._trim_text(self._stringify_output(item.get("output", "")), max_chars=1400)
-            parts.append(f"── {label} ──\n{body}")
-        compact = "\n\n".join(part for part in parts if part)
-        return compact or full_context
+        return build_agent_context(
+            base_context=state.base_context,
+            context=state.context,
+            trace=state.trace,
+            agent_name=agent_name,
+            task=state.task,
+            instruction=instruction,
+        )
 
     def _allowed_files(self, state: PipelineState) -> list[str]:
         files = []
@@ -526,7 +375,7 @@ class NexusOrchestrator:
             else:
                 output = await agent.run(instruction, context)
 
-        state.context = self._append_context_block(state.context, trace_name, output)
+        state.context = append_context_block(state.context, trace_name, output)
         self._record_trace(state, trace_name, output)
         self._emit(state, "__output__", trace_name, output)
         return output
@@ -568,7 +417,7 @@ class NexusOrchestrator:
             original_task=state.task,
         )
         trace_name = label if attempt is None else "Optimizer"
-        state.context = self._append_context_block(state.context, trace_name, improved)
+        state.context = append_context_block(state.context, trace_name, improved)
         self._record_trace(state, trace_name, improved, **({"attempt": attempt} if attempt is not None else {}))
         self._emit(state, "__output__", trace_name, improved)
         return improved
@@ -650,20 +499,21 @@ class NexusOrchestrator:
                 + "\n".join(f"  - {gap}" for gap in critique.get("gaps", []))
                 + f"\n\nInstructions: {critique.get('improvement_instructions', '')}\n\n"
                 + f"Task: {state.task}\n\n"
-                + "Steps for ONLY Coder — write files with open(), no servers."
+                + "Return only the agents needed to fix the issue. "
+                + "Use Coder for file/code fixes, Optimizer for content refinement, "
+                + "and Researcher only if fresh external information is truly required."
             )
             fallback_step = {"step": 1, "agent": "Coder", "instruction": critique.get("improvement_instructions", "Improve the code.")}
             _, fix_steps = await self._request_fix_plan(
                 state,
                 prompt=prompt,
                 planner_hint=critique.get("improvement_instructions", ""),
-                allowed_agents={"Coder", "Researcher", "Analyst"},
+                allowed_agents={"Coder", "Researcher", "Analyst", "Optimizer"},
                 fallback_step=fallback_step,
                 trace_name="Planner (fix)",
             )
             self._emit_fix_plan(state, fix_steps)
             await self._execute_fix_steps(state, fix_steps, phase="fix")
-            await self._run_optimizer(state, critique, attempt=attempt)
 
     async def _run_validation(self, state: PipelineState, *, label: str = "Validator", hint: str | None = None) -> dict:
         message = "Final validation..." if label == "Validator" else "Re-validating after post-fix..."
@@ -699,9 +549,8 @@ class NexusOrchestrator:
             + "\n\nAll previous work is in the context below. "
             "Create a minimal plan to fix ONLY what the Validator flagged.\n"
             "Do NOT redo work that is already done.\n"
-            "If files need to be written to disk: use Coder with open().\n"
-            "If content needs improvement: use Optimizer.\n"
-            "If more research is needed: use Researcher.\n"
+            "Choose the agent that best fits the issue.\n"
+            "Use Coder for file/code fixes, Optimizer for content refinement, and Researcher only when current external information is necessary.\n"
             "Do NOT include Critic, Validator, or Reporter in fix steps."
         )
         has_file_issue = any(word in state.val_reason.lower() for word in [
@@ -726,17 +575,6 @@ class NexusOrchestrator:
             fallback_step=fallback_step,
             trace_name="Planner (post-fix)",
         )
-        if has_file_issue and fix_steps and all(step.get("agent") == "Optimizer" for step in fix_steps):
-            fix_steps = [{
-                "step": 1,
-                "agent": "Coder",
-                "instruction": (
-                    f"Fix the missing or wrongly written files for task '{state.task[:80]}'.\n"
-                    f"Validator reason: {state.val_reason}\n"
-                    f"Unmet: {', '.join(state.unmet)}\n"
-                    "Write the required files to disk using open() in the expected paths."
-                ),
-            }]
         self._emit_fix_plan(state, fix_steps)
         await self._execute_fix_steps(state, fix_steps, phase="post-fix")
         await self._run_validation(state, label="Validator (re-check)", hint=state.val_reason)
@@ -789,8 +627,7 @@ Empty array [] if nothing new.
 Raw JSON only. No fences.\
 """
         try:
-            raw_facts = await self._llm_call(
-                self.client,
+            raw_facts = await self._call_nexus_llm(
                 fact_system.format(existing=existing_text, task=state.task, answer=answer),
                 "Extract new facts:",
             )
@@ -815,52 +652,6 @@ Raw JSON only. No fences.\
             "Memory",
             f"Stored → session={self.session.turn_count} | vectors={self.vector.count} | facts={self.ltm.count}",
         )
-
-    async def _llm_call(self, model_client, system: str, user: str) -> str:
-        from autogen_core.models import SystemMessage, UserMessage
-
-        current_provider = get_runtime_provider()
-        providers_to_try = [current_provider] + get_fallback_providers(current_provider)
-        attempted = set()
-        last_error = None
-
-        for provider in providers_to_try:
-            if provider in attempted:
-                continue
-            attempted.add(provider)
-            try:
-                client = model_client if provider == current_provider else get_model_client(
-                    provider_override=provider,
-                    set_runtime=False,
-                )
-                if provider != current_provider:
-                    set_runtime_client(client, provider)
-                    self.client = client
-                    current_provider = provider
-                    log.warn("Retrying with fallback provider", agent="NEXUS", provider=provider)
-                else:
-                    client = get_runtime_client()
-                    self.client = client
-                result = await client.create(
-                    messages=[
-                        SystemMessage(content=system),
-                        UserMessage(content=user, source="nexus"),
-                    ]
-                )
-                content = result.content
-                if isinstance(content, list):
-                    content = " ".join(part.text if hasattr(part, "text") else str(part) for part in content)
-                return (content or "").strip()
-            except Exception as error:
-                last_error = error
-                if provider == current_provider and not self._is_retryable_provider_error(error):
-                    raise
-                if not self._is_retryable_provider_error(error):
-                    continue
-
-        if last_error:
-            raise last_error
-        raise RuntimeError("No model provider available.")
 
     def _init_memory(self) -> None:
         if not MEMORY_AVAILABLE:

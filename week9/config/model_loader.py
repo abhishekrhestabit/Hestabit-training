@@ -1,34 +1,13 @@
-"""
-config/model_loader.py
-─────────────────────────────────────────────────────────────────
-Single source of truth for model client creation.
-Used by Day 3, Day 4, and NEXUS AI.
-
-Key priority (highest → lowest):
-  1. Environment variable   export GEMINI_API_KEY=...
-  2. week9/.env file        GEMINI_API_KEY=...
-  3. model.yaml             gemini.api_key: ...
-
-Usage:
-    from config.model_loader import get_model_client
-    client = get_model_client()
-─────────────────────────────────────────────────────────────────
-"""
-
 import os
 import yaml
 from pathlib import Path
 
-# Load .env from project root (week9/.env) — safe, no-op if missing
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 except ImportError:
-    pass  # python-dotenv not installed — keys must be in env or model.yaml
-
-
+    pass  
 def _build_model_info(family: str = "unknown") -> dict:
-    """Shared AutoGen model metadata for custom/non-native providers."""
     return {
         "vision": False,
         "function_calling": True,
@@ -40,10 +19,7 @@ def _build_model_info(family: str = "unknown") -> dict:
 
 
 def _infer_family(provider: str, model: str) -> str:
-    """
-    Best-effort family mapping for AutoGen.
-    Falls back to "unknown" for preview/custom names.
-    """
+  
     from autogen_core.models import ModelFamily
 
     normalized = model.lower()
@@ -81,38 +57,23 @@ def _load_yaml() -> dict:
 
 
 def _resolve_key(yaml_value: str | None, env_var: str, label: str) -> str:
-    """
-    Resolve an API key with priority: env var > yaml value.
-
-    Handles three yaml patterns:
-      api_key: GEMINI_API_KEY          ← treat as env var name
-      api_key: ${GEMINI_API_KEY}       ← shell-style variable
-      api_key: actual_key_value        ← literal key (not recommended)
-    """
     PLACEHOLDERS = {"", "YOUR_GEMINI_API_KEY_HERE", "YOUR_GROQ_API_KEY_HERE",
                     "YOUR_TAVILY_API_KEY_HERE"}
 
-    # 1. Always check actual env var first (set by .env or export)
     key = os.environ.get(env_var, "")
     if key and key not in PLACEHOLDERS:
         return key
-
-    # 2. Check yaml value
     if yaml_value:
-        # Strip shell-style ${...} wrapper
         raw = yaml_value.strip()
         if raw.startswith("${") and raw.endswith("}"):
             raw = raw[2:-1]
 
-        # If value looks like an env var name (ALL_CAPS_WITH_UNDERSCORES)
-        # treat it as a reference and look it up
         import re as _re
         if _re.match(r'^[A-Z][A-Z0-9_]+$', raw):
             resolved = os.environ.get(raw, "")
             if resolved and resolved not in PLACEHOLDERS:
                 return resolved
         elif raw not in PLACEHOLDERS:
-            # Literal key value in yaml
             return raw
 
     raise ValueError(
@@ -126,18 +87,12 @@ def _resolve_key(yaml_value: str | None, env_var: str, label: str) -> str:
 
 
 def get_model_client(provider_override: str | None = None):
-    """
-    Returns an AutoGen 0.7.5 compatible model client based on model.yaml.
-    Supports: ollama | gemini | groq
-    """
     cfg      = _load_yaml()
     provider = (
         provider_override
         or os.environ.get("NEXUS_PROVIDER")
         or cfg.get("active_provider", "ollama")
     ).lower()
-
-    # ── Ollama (local) ────────────────────────────────────────────
     if provider == "ollama":
         from autogen_ext.models.ollama import OllamaChatCompletionClient
         ollama_cfg = cfg.get("ollama", {})
@@ -152,7 +107,6 @@ def get_model_client(provider_override: str | None = None):
             model_info=_build_model_info(),
         )
 
-    # ── Gemini ────────────────────────────────────────────────────
     elif provider == "gemini":
         from autogen_ext.models.openai import OpenAIChatCompletionClient
         gemini_cfg = cfg.get("gemini", {})
@@ -169,8 +123,6 @@ def get_model_client(provider_override: str | None = None):
             model_info=_build_model_info(_infer_family("gemini", model)),
         )
 
-
-    # ── Groq ──────────────────────────────────────────────────────
     elif provider == "groq":
         from autogen_ext.models.openai import OpenAIChatCompletionClient
         groq_cfg = cfg.get("groq", {})

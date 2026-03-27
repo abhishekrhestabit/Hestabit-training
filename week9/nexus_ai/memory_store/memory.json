@@ -138,5 +138,25 @@
     "text": "The user considers a 1,000-row dataset to be a small-to-medium sized workload for their current pipeline architecture.",
     "timestamp": 1774470539.3881614,
     "type": "fact"
+  },
+  {
+    "text": "The user is expanding their development capabilities to include full-stack web application architectures utilizing Node.js, Express, React, and PostgreSQL.",
+    "timestamp": 1774473197.4153147,
+    "type": "fact"
+  },
+  {
+    "text": "The user employs Docker Compose as the standard orchestration tool for containerizing multi-service application environments.",
+    "timestamp": 1774473197.4396522,
+    "type": "fact"
+  },
+  {
+    "text": "The user uses Vite as the build tool for React-based frontend development.",
+    "timestamp": 1774473197.4581409,
+    "type": "fact"
+  },
+  {
+    "text": "The user organizes their web application projects with a modular structure separating frontend and backend source code.",
+    "timestamp": 1774473197.4715967,
+    "type": "fact"
   }
 ]

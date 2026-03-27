@@ -8,8 +8,6 @@ from autogen_ext.models.ollama import OllamaChatCompletionClient
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage
 
-# --- AGENT MODULE DEFINITIONS ---
-
 def get_research_agent(model_client, model_context):
     return AssistantAgent(
         name="researcher",
@@ -34,14 +32,11 @@ def get_answer_agent(model_client, model_context):
         system_message="You are an expert communicator. Answer user questions directly based on the data analysis performed by your team."
     )
 
-# --- MAIN LOGIC ---
-
 def load_csv_data(file_path: str):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The file {file_path} was not found.")
     
     df = pd.read_csv(file_path)
-    # Return only essential metadata to save tokens
     summary = (
         f"DATASET METADATA:\n"
         f"- Columns: {list(df.columns)}\n"
@@ -64,11 +59,8 @@ async def main():
         print(f"\n[ERROR] Failed to load CSV: {e}")
         return
 
-    # Use a system message in the context to hold the CSV metadata permanently
-    # This avoids re-sending it with every user message
     system_msg = TextMessage(content=f"You have access to the following CSV metadata:\n{csv_metadata}", source="system")
     
-    # Initialize agents with a context that starts with the metadata
     from autogen_agentchat.base import BufferedChatCompletionContext
     context = BufferedChatCompletionContext(buffer_size=15)
     await context.add_message(system_msg)

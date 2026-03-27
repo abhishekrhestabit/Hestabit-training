@@ -34,34 +34,6 @@ def info(t):     print(f"  {C.GREY}{t}{C.RESET}")
 def sep():       print(f"  {C.GREY}{'·'*56}{C.RESET}")
 
 
-BANNER = f"""
-╔══════════════════════════════════════════════════════════════╗
-║           NEXUS AI  —  Autonomous Multi-Agent System         ║
-║                                                              ║
-║  Agents: Planner · Researcher · Coder · Analyst              ║
-║          Critic · Optimizer · Validator · Reporter           ║
-║                                                              ║
-║  Commands:                                                   ║
-║    /file <path>   — attach a file for Researcher/Analyst     ║
-║    /db   <path>   — attach a SQLite DB for Analyst           ║
-║    /save <path>   — save report to file                      ║
-║    /trace         — show last execution trace                ║
-║    /model         — show active model                        ║
-║    /memory        — show memory stats and contents           ║
-║    clear          — wipe all memory layers                   ║
-║    exit           — quit                                     ║
-╚══════════════════════════════════════════════════════════════╝"""
-
-EXAMPLES = """
-Example tasks:
-  • Plan a startup in AI for healthcare
-  • Generate backend architecture for a scalable e-commerce app
-  • Design a RAG pipeline for 50,000 documents
-  • Write a Python script to scrape and analyse news headlines
-  • /file data/sales.csv  Analyse this CSV and create a business strategy
-"""
-
-
 def parse_flags(query: str) -> tuple[str, dict]:
     """Extract /file, /db, /save flags from the query."""
     flags     = {"file_path": None, "db_path": None, "save_to": None}
@@ -113,9 +85,6 @@ def _extract_file_from_query(query: str) -> str | None:
 
 
 async def run_cli():
-    print(BANNER)
-    print(EXAMPLES)
-
     model = get_runtime_model()
     info(f"Provider: {get_runtime_provider().upper()} | Model: {model}")
     info("Initialising agents...")

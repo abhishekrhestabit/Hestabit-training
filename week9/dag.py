@@ -8,12 +8,7 @@ from orchestrator.planner import get_planner_agent
 from agents.worker_agent import get_worker_agent
 from agents.reflection_agent import get_reflection_agent
 from agents.validator import get_validator_agent
-from agents.answer_agent import get_answer_agent
 
-
-# ─────────────────────────────────────────────
-# CONFIG — swap model/base_url to your local LLM
-# ─────────────────────────────────────────────
 def get_model_client():
     return OllamaChatCompletionClient(
         model="qwen2.5:3b-instruct-q4_K_M",

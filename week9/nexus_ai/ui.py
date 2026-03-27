@@ -146,8 +146,8 @@ def _tag(agent):
 def _meta_bar(agents_used, score, duration, saved, approved):
     tags      = "".join(_tag(a) for a in agents_used)
     score_css = "score-pass" if str(score).isdigit() and int(score) >= 7 else "score-fail"
-    flag      = "✅" if approved else "⚠️"
-    saved_str = "&nbsp;|&nbsp;💾 Saved" if saved else ""
+    flag      = "" if approved else ""
+    saved_str = "&nbsp;|&nbsp; Saved" if saved else ""
     return (
         f'<div class="meta-bar">{tags}'
         f'&nbsp;|&nbsp;<span class="{score_css}">{flag} {score}/10</span>'
@@ -159,7 +159,7 @@ def _render_message(msg):
     """Render a single chat message — user or assistant."""
     if msg["role"] == "user":
         st.markdown(
-            f'<div class="user-bubble">👤 &nbsp;{msg["content"]}</div>',
+            f'<div class="user-bubble"> &nbsp;{msg["content"]}</div>',
             unsafe_allow_html=True,
         )
     else:
@@ -190,7 +190,7 @@ def _render_message(msg):
 
 # ── Sidebar ───────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🤖 NEXUS AI")
+    st.markdown("##  NEXUS AI")
     st.markdown("*Autonomous Multi-Agent System*")
     st.divider()
 
@@ -199,14 +199,14 @@ with st.sidebar:
     st.markdown(f"**Model:** `{model_label}`")
     st.divider()
 
-    st.markdown("### 🧠 Memory")
+    st.markdown("###  Memory")
     ms = st.session_state.mem_stats
     c1, c2, c3 = st.columns(3)
     c1.metric("Session", ms["session"])
     c2.metric("Vectors", ms["vectors"])
     c3.metric("Facts",   ms["facts"])
 
-    if st.button("🗑️ Clear memory", use_container_width=True):
+    if st.button(" Clear memory", use_container_width=True):
         n = st.session_state.orchestrator
         if n:
             if n.session: n.session.clear()
@@ -217,21 +217,21 @@ with st.sidebar:
 
     n = st.session_state.orchestrator
     if n and n.ltm and n.ltm.count > 0:
-        with st.expander(f"📋 Stored facts ({n.ltm.count})", expanded=False):
+        with st.expander(f" Stored facts ({n.ltm.count})", expanded=False):
             for f in n.ltm.get_recent(n=10):
                 st.caption(f"• {f['fact'][:80]}")
     st.divider()
 
-    st.markdown("### ⚙️ Options")
+    st.markdown("### Options")
     uploaded_file = st.file_uploader(
         "Attach file", type=["csv","txt","md","json","py","db","yaml"],
         help="Passed to Researcher and Analyst"
     )
-    save_report = st.checkbox("💾 Auto-save report", value=False)
+    save_report = st.checkbox(" Auto-save report", value=False)
     st.divider()
 
-    st.markdown("### 💬 Conversation")
-    if st.button("🗑️ Clear chat", use_container_width=True):
+    st.markdown("### Conversation")
+    if st.button("Clear chat", use_container_width=True):
         st.session_state.messages   = []
         st.session_state.last_trace = []
         st.rerun()
@@ -249,7 +249,7 @@ with st.sidebar:
 
 
 # ── Main ──────────────────────────────────────────────────────────
-st.markdown("# 🤖 NEXUS AI")
+st.markdown("# NEXUS AI")
 st.markdown("*Planner · Researcher · Coder · Analyst · Critic · Optimizer · Validator · Reporter*")
 st.divider()
 
@@ -301,15 +301,15 @@ if user_input:
     agent_steps  = []
 
     def on_update(step, content, output=""):
-        icon = {"Critic":"🔍","Optimizer":"🔧","Validator":"✅","Planner":"📋",
-                "Researcher":"🔎","Coder":"💻","Analyst":"📊","Reporter":"📝",
-                "Memory":"🧠","NEXUS":"⚡"}.get(step.split(" ")[0], "·")
+        icon = {"Critic":"","Optimizer":"","Validator":"","Planner":"",
+                "Researcher":"","Coder":"","Analyst":"","Reporter":"",
+                "Memory":"","NEXUS":"⚡"}.get(step.split(" ")[0], "·")
         agent_steps.append({"agent": step, "output": content})
         lines = "\n".join(
             f'<div class="agent-step">{icon} <b>[{s["agent"]}]</b> {s["output"][:100]}</div>'
             for s in agent_steps[-6:]
         )
-        progress_box.markdown(f"**🔄 Running...**\n{lines}", unsafe_allow_html=True)
+        progress_box.markdown(f"** Running...**\n{lines}", unsafe_allow_html=True)
 
     # Run
     t0 = time.time()
