@@ -13,11 +13,6 @@ from tools.code_executor import execute_python_code, auto_install_missing
 from tools.db_agent      import query_database, inspect_schema
 from tools.file_agent    import read_txt, read_csv, read_json, write_txt, write_csv, read_file
 
-
-# ─────────────────────────────────────────────────────────────────
-#  Colour helpers for CLI progress display
-# ─────────────────────────────────────────────────────────────────
-
 class C:
     RESET  = "\033[0m"
     BOLD   = "\033[1m"
@@ -37,11 +32,6 @@ def info(text):  print(f"  {C.GREY}{text}{C.RESET}")
 def step(n, t):  print(f"\n{C.BOLD}{C.BLUE}  [{n}] {t}{C.RESET}")
 def fixing(t):   print(f"  {C.MAGENTA} {t}{C.RESET}")
 
-
-# ─────────────────────────────────────────────────────────────────
-#  LLM call helper — plain request/response, no agents
-# ─────────────────────────────────────────────────────────────────
-
 async def llm(model_client, system: str, user: str) -> str:
     response = await model_client.create(
         messages=[
@@ -55,17 +45,6 @@ async def llm(model_client, system: str, user: str) -> str:
             p.text if hasattr(p, "text") else str(p) for p in content
         )
     return (content or "").strip()
-
-
-
-#  STEP 1 — PLANNER
-#
-#  Two-phase approach:
-#    Phase A — THINK: reason about what the query actually needs
-#    Phase B — PLAN:  produce the minimal task list from that reasoning
-#
-#  Phase A prevents the model from jumping straight to "read a file"
-#  when no file exists, or adding unnecessary tasks.
 
 THINKER_SYSTEM = """\
 You are an expert at understanding what a user request truly requires.
@@ -219,12 +198,6 @@ async def plan(model_client, query: str) -> list[dict]:
         print(f"  {C.BOLD}Task {t['id']}{C.RESET}: [{t['type']}] {t['description']}")
     return tasks
 
-
-# ─────────────────────────────────────────────────────────────────
-#  STEP 2 — CODE GENERATOR
-#  Called when a run_code task needs actual code written.
-# ─────────────────────────────────────────────────────────────────
-
 CODE_GEN_SYSTEM = """\
 You are a Python code writer. Write complete, runnable Python code to
 accomplish the given goal.
@@ -244,10 +217,6 @@ async def generate_code(model_client, goal: str, context: str) -> str:
     code = re.sub(r"```(?:python)?", "", code).strip().rstrip("`").strip()
     return code
 
-
-# ─────────────────────────────────────────────────────────────────
-#  STEP 2b — SQL GENERATOR
-# ─────────────────────────────────────────────────────────────────
 
 SQL_GEN_SYSTEM = """\
 You are a SQLite expert. Write a single, correct SQL query.
@@ -279,13 +248,6 @@ async def generate_sql(model_client, goal: str, schema: str) -> str:
     # Strip trailing semicolon if present
     sql = sql.rstrip(";").strip()
     return sql
-
-
-# ─────────────────────────────────────────────────────────────────
-#  STEP 2c — FILE CONTENT GENERATOR
-#  Produces well-formatted documents — reports, READMEs, summaries.
-#  Detects the output format from the file extension and description.
-# ─────────────────────────────────────────────────────────────────
 
 CONTENT_GEN_SYSTEM = """\
 You are a professional technical writer and Python developer.
@@ -374,12 +336,6 @@ async def generate_csv_rows(model_client, description: str, context: str) -> lis
     return None
 
 
-# ─────────────────────────────────────────────────────────────────
-#  STEP 3 — EXECUTOR
-#  Runs each task, returns result string.
-#  If it fails, calls fixer once.
-# ─────────────────────────────────────────────────────────────────
-
 FIX_SYSTEM = """\
 You are a debugging assistant. A Python code execution failed. Your job is to
 provide a corrected version of the code.
@@ -413,10 +369,8 @@ async def fix_task(model_client, task: dict, error: str, code: str = "") -> dict
     )
     raw = await llm(model_client, FIX_SYSTEM, prompt)
 
-    # Strip markdown fences
     raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
 
-    # Attempt 1: clean JSON parse
     try:
         result = json.loads(raw)
         if "fixed_code" in result:
@@ -424,7 +378,6 @@ async def fix_task(model_client, task: dict, error: str, code: str = "") -> dict
     except Exception:
         pass
 
-    # Attempt 2: extract just the JSON object portion
     match = re.search(r'\{.*\}', raw, re.DOTALL)
     if match:
         try:
@@ -434,8 +387,6 @@ async def fix_task(model_client, task: dict, error: str, code: str = "") -> dict
         except Exception:
             pass
 
-    # Attempt 3: extract fixed_code directly with regex even if JSON is broken
-    # Small models sometimes produce valid code but malformed surrounding JSON
     code_match = re.search(
         r'"fixed_code"\s*:\s*"((?:[^"\\]|\\.)*)"', raw, re.DOTALL
     )
@@ -450,7 +401,6 @@ async def fix_task(model_client, task: dict, error: str, code: str = "") -> dict
             "fixed_code": extracted_code,
         }
 
-    # Attempt 4: if response looks like raw Python code itself, use it directly
     if raw.strip().startswith(("import ", "def ", "class ", "#")):
         return {
             "fix_type": "rewrite_code",
@@ -458,7 +408,6 @@ async def fix_task(model_client, task: dict, error: str, code: str = "") -> dict
             "fixed_code": raw.strip(),
         }
 
-    # Nothing worked
     return {"fix_type": "skip", "diagnosis": raw[:300]}
 
 
@@ -611,12 +560,10 @@ async def execute_task(
         file_path = args.get("file_path", "")
         text      = args.get("text", "")
 
-        # Always generate via the content generator — even if planner
-        # inlined a short text, the generator produces better formatted output
+      
         if text == "GENERATE" or text:
             info("Generating formatted document content...")
-            # Pass both the task description AND the original user query
-            # so the generator knows exactly what kind of document to write
+           
             generation_desc = f"{desc}\n\nOriginal user request: {context.splitlines()[0] if context else desc}"
             text = await generate_file_content(model_client, generation_desc, context)
             info(f"Generated {len(text)} chars")
@@ -723,12 +670,6 @@ async def execute_task(
         return {"id": tid, "description": desc,
                 "result": f"Unknown task type: {ttype}", "success": False}
 
-
-# ─────────────────────────────────────────────────────────────────
-#  STEP 4 — ANSWER GENERATOR
-#  Takes all task results, writes a clean final answer.
-# ─────────────────────────────────────────────────────────────────
-
 ANSWER_SYSTEM = """\
 You are a helpful assistant writing a final answer for the user.
 
@@ -749,10 +690,6 @@ async def generate_answer(model_client, query: str, results: list[dict]) -> str:
     return await llm(model_client, ANSWER_SYSTEM, prompt)
 
 
-# ─────────────────────────────────────────────────────────────────
-#  MAIN PIPELINE
-# ─────────────────────────────────────────────────────────────────
-
 async def run_pipeline(query: str, model_client):
     print(f"\n{C.BOLD}{C.CYAN}{'═'*60}{C.RESET}")
     print(f"{C.BOLD}{C.CYAN}  Query: {query}{C.RESET}")
@@ -770,10 +707,6 @@ async def run_pipeline(query: str, model_client):
         result = await execute_task(model_client, task, context, results)
         results.append(result)
 
-        # Build context for the next task.
-        # READ tasks pass their FULL content — truncation would mean the
-        # next task (e.g. write a report) only sees partial file data.
-        # Other tasks get a 500-char summary to keep context manageable.
         ttype = task.get("type", "")
         if ttype in ("read_txt", "read_csv", "read_json") and result["success"]:
             # Full content — no truncation
@@ -787,11 +720,6 @@ async def run_pipeline(query: str, model_client):
     answer = await generate_answer(model_client, query, results)
     print(f"\n{C.BOLD}{answer}{C.RESET}\n")
 
-
-# ─────────────────────────────────────────────────────────────────
-#  Interactive CLI
-# ─────────────────────────────────────────────────────────────────
-
 BANNER = """
 ╔══════════════════════════════════════════════════════════════╗
 ║        DAY 3 — Tool-Calling Agent Pipeline                   ║
@@ -800,21 +728,8 @@ BANNER = """
 ║  Type your query and press Enter.  Type 'exit' to quit.      ║
 ╚══════════════════════════════════════════════════════════════╝"""
 
-EXAMPLES = """
-Example queries:
-  • Read the file at data/sales.csv and summarise it
-  • Create a CSV of the 5 largest planets with columns name, diameter_km,
-    moons — save it to data/planets.csv
-  • Analyse data/sales.csv and find the top 3 products by total revenue
-  • Write a short report about AI agents to data/report.txt
-  • Query the database data/sales.db and show total sales per region
-  • Generate a times table up to 12 using Python
-"""
-
-
 async def interactive_loop():
     print(BANNER)
-    print(EXAMPLES)
 
     model_client = get_model_client()
 
