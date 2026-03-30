@@ -45,31 +45,39 @@ class FactMemory(Memory):
 
     async def query(self, query: MemoryContent, **_) -> MemoryQueryResult:
         seen, results = set(), []
-        
-        for hit in self.vector.search(query.content):  # 1. Semantic search
+        max_results = 3
+
+        for hit in self.vector.search(query.content):  # semantic search (scored, threshold-filtered)
             if hit["text"] not in seen:
                 results.append(MemoryContent(content=hit["text"], mime_type=MemoryMimeType.TEXT))
                 seen.add(hit["text"])
-                
-        for fact in self.long_term.search(query.content):  # 2. Keyword search
-            if fact not in seen:
-                results.append(MemoryContent(content=fact, mime_type=MemoryMimeType.TEXT))
-                seen.add(fact)
-                
+            if len(results) >= max_results:
+                break
+
+        # Only fall back to keyword search if semantic search found nothing
+        if not results:
+            for fact in self.long_term.search(query.content, top_k=max_results):
+                if fact not in seen:
+                    results.append(MemoryContent(content=fact, mime_type=MemoryMimeType.TEXT))
+                    seen.add(fact)
+                if len(results) >= max_results:
+                    break
+
         return MemoryQueryResult(results=results)
 
     async def update_context(self, model_context) -> None:
         messages = await model_context.get_messages()
         if not messages: return
-        
+
         last_msg = messages[-1].content
         query_text = last_msg if isinstance(last_msg, str) else str(last_msg)
-        
-        # Auto-retrieve relevant long-term facts based on the last user message
+
         res = await self.query(MemoryContent(content=query_text, mime_type=MemoryMimeType.TEXT))
         if res.results:
             facts = "\n".join(f"- {r.content}" for r in res.results)
             await model_context.add_message(UserMessage(content=f"Relevant long-term facts:\n{facts}", source="memory"))
+        else:
+            await model_context.add_message(UserMessage(content="No relevant memories found for this query.", source="memory"))
 
     async def clear(self) -> None:
         self.vector.clear()

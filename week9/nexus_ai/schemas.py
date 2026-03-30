@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 WorkerType = Literal["researcher", "coder", "analyst"]
-TaskKind = Literal["simple_answer", "artifact", "mixed"]
+TaskKind = Literal["simple_answer", "artifact", "mixed", "fact_storage"]
 
 
 class PlanStep(BaseModel):

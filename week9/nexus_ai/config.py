@@ -25,6 +25,8 @@ AGENT_PROMPTS = {
         "- coder: has CodeExecutorAgent (Docker, stdlib only), list_files, read_text_file, write_text_file, "
         "copy_file_to_workspace. Use ONLY when code execution is required: creating .db, generating data, running scripts.\n\n"
         "ROUTING:\n"
+        "- User states a fact or says 'remember X' → task_kind: 'fact_storage', steps: [] (empty). "
+        "The system will store it automatically. Do NOT create worker steps for this.\n"
         "- CSV analysis + report → analyst (1 step). analyze_csv gives stats, write_analysis_report writes .md.\n"
         "- Read/explain file → researcher (1 step)\n"
         "- Web research → researcher (1 step)\n"

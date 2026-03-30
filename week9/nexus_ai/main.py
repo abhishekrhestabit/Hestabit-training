@@ -89,6 +89,7 @@ def _build_graph(client, query, plan, memory, code_tool):
         prev = w
 
     critic = AssistantAgent("Critic", model_client=client,
+        memory=[memory.session, memory.fact_memory],
         system_message=AGENT_PROMPTS["Critic"], model_context=_buf())
     agents.append(critic); builder.add_node(critic, activation="any"); builder.add_edge(prev, critic)
 
@@ -101,6 +102,7 @@ def _build_graph(client, query, plan, memory, code_tool):
     builder.add_edge(optimizer, critic, activation_group="optimizer_loop")
 
     validator = AssistantAgent("Validator", model_client=client,
+        memory=[memory.session, memory.fact_memory],
         system_message=AGENT_PROMPTS["Validator"], model_context=_buf())
     agents.append(validator); builder.add_node(validator)
     builder.add_edge(critic, validator, condition="[APPROVED]")
@@ -145,6 +147,11 @@ async def run_nexus(query: str, memory: MemorySystem) -> str:
             plan = await _plan(client, query, memory, feedback)
             print(plan.model_dump_json(indent=2))
             log.info("Cycle %d: %d steps — %s", cycle, len(plan.steps), plan.plan_summary)
+            if plan.task_kind == "fact_storage":
+                await memory.store_fact(f"User stated: {query}", metadata={"query": query, "folder": plan.query_folder})
+                log.info("Fact stored: %s", query[:80])
+                return f"Got it! I've remembered that for you."
+
             if not plan.steps: feedback = "Empty plan. Create actual steps."; continue
 
             qf = plan.query_folder
