@@ -1,37 +1,7 @@
-# Python bytecode and caches
+.env
 __pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
-venv/ 
-.venv/
-env/
-
-
-# Tooling caches
+*.pyc
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.ipynb_checkpoints/
-
-# Build/distribution artifacts
-build/
-dist/
-*.egg-info/
-
-# Environment and local config
-.env 
-.env.*
-.python-version
-
-# Logs
+.runtime/
+venv/
 *.log
-
-# OS/editor noise
-.DS_Store
-Thumbs.db
-
-# Runtime vector memory artifacts
-memory/memory.faiss
-memory/memory.json

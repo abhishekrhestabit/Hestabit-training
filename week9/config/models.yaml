@@ -1,0 +1,45 @@
+default_provider: gemini
+
+providers:
+  gemini:
+    client_type: semantic-kernel-google
+    model: gemini-3.1-flash-lite-preview
+    api_key_env: GEMINI_API_KEY
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      structured_output: true
+      multiple_system_messages: true
+      family: UNKNOWN
+
+  groq:
+    client_type: openai
+    model: llama-3.3-70b-versatile
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    add_name_prefixes: true
+    include_name_in_message: false
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      structured_output: true
+      multiple_system_messages: true
+      family: LLAMA_3_3_70B
+
+  ollama:
+    client_type: openai
+    model: qwen2.5:3b
+    base_url_env: OLLAMA_BASE_URL
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    add_name_prefixes: true
+    include_name_in_message: false
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      structured_output: true
+      multiple_system_messages: true
+      family: UNKNOWN

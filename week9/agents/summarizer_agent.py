@@ -1,7 +1,7 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_core.model_context import BufferedChatCompletionContext
 
-def get_summarizer_agent(model_client):
+def get_summarizer_agent(model_client, model_context: BufferedChatCompletionContext | None = None):
     """
     Summarizer agent responsible for distilling research data into concise insights.
     The agent expects the research context to be pre-loaded into the shared conversation state
@@ -15,5 +15,5 @@ def get_summarizer_agent(model_client):
             "Focus only on key insights and trends. Do not add external information or hallucinate facts."
         ),
         model_client=model_client,
-        model_context=BufferedChatCompletionContext(buffer_size=10)
+        model_context=model_context or BufferedChatCompletionContext(buffer_size=10)
     )

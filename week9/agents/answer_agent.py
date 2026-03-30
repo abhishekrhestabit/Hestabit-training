@@ -1,7 +1,7 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_core.model_context import BufferedChatCompletionContext
 
-def get_answer_agent(model_client):
+def get_answer_agent(model_client, model_context: BufferedChatCompletionContext | None = None):
     return AssistantAgent(
         name="Answer_Agent",
         system_message=(
@@ -13,5 +13,5 @@ def get_answer_agent(model_client):
             "using simple line breaks and indentation for structure."
         ),
         model_client=model_client,
-        model_context=BufferedChatCompletionContext(buffer_size=10)
+        model_context=model_context or BufferedChatCompletionContext(buffer_size=10)
     )

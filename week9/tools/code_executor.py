@@ -1,98 +1,77 @@
-import re
-import subprocess
-import sys
-import tempfile
+from __future__ import annotations
+
 import os
-import textwrap
 from pathlib import Path
 
+from autogen_agentchat.agents import ApprovalRequest, ApprovalResponse, CodeExecutorAgent
+from autogen_agentchat.tools import AgentTool
+from autogen_ext.code_executors.docker import DockerCommandLineCodeExecutor
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SAFE_DIR = PROJECT_ROOT / "workspace"
-SAFE_DIR.mkdir(parents=True, exist_ok=True)
+RUNTIME_DIR = PROJECT_ROOT / ".runtime" / "code"
+CONTAINER_RUNTIME_DIR = "/workspace"
 
-IMPORT_TO_PIP = {
-    "sklearn": "scikit-learn",
-    "cv2": "opencv-python",
-    "PIL": "Pillow",
-    "bs4": "beautifulsoup4",
-    "yaml": "pyyaml",
-    "dotenv": "python-dotenv",
-    "dateutil": "python-dateutil",
-}
 
-def _extract_imports(code: str) -> list[str]:
-    pattern = re.compile(r'^\s*(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.MULTILINE)
-    seen = []
-    for m in pattern.finditer(code):
-        pkg = m.group(1)
-        if pkg not in seen:
-            seen.append(pkg)
-    return seen
+def _approval_func(request: ApprovalRequest) -> ApprovalResponse:
+    auto_approve = os.getenv("DAY3_AUTO_APPROVE_CODE_EXECUTION", "").strip().lower()
+    if auto_approve in {"1", "true", "yes"}:
+        return ApprovalResponse(approved=True, reason="Approved via DAY3_AUTO_APPROVE_CODE_EXECUTION")
 
-def auto_install_missing(code: str) -> list[str]:
-    installed = []
-    for import_name in _extract_imports(code):
+    print("\n" + "=" * 78)
+    print("CODE EXECUTION APPROVAL")
+    print("=" * 78)
+    print(request.code)
+    print("=" * 78)
+
+    while True:
         try:
-            __import__(import_name)
-            continue
-        except ImportError:
-            pass
+            user_input = input("Run this code in Docker? [y/N]: ").strip().lower()
+        except EOFError:
+            return ApprovalResponse(approved=False, reason="Approval denied because no interactive input was available")
 
-        pip_name = IMPORT_TO_PIP.get(import_name, import_name)
-        print(f"   Installing: {pip_name} ...", flush=True)
+        if user_input in {"y", "yes"}:
+            return ApprovalResponse(approved=True, reason="Approved by user")
+        if user_input in {"", "n", "no"}:
+            return ApprovalResponse(approved=False, reason="Denied by user")
 
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", pip_name, "-q"],
-            capture_output=True,
-            text=True,
-        )
+        print("Please enter 'y' or 'n'.")
 
-        if result.returncode == 0:
-            print(f"   Installed: {pip_name}", flush=True)
-            installed.append(pip_name)
-        else:
-            err = (result.stderr or result.stdout or "unknown").strip()
-            print(f"   Failed to install {pip_name}: {err[:120]}", flush=True)
 
-    return installed
+async def build_code_execution_tool(model_client, query_folder: str | None = None) -> tuple[AgentTool, DockerCommandLineCodeExecutor]:
+    work_dir = RUNTIME_DIR / query_folder if query_folder else RUNTIME_DIR
+    work_dir.mkdir(parents=True, exist_ok=True)
 
-def execute_python_code(code: str, timeout: int = 60) -> dict:
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False, encoding="utf-8"
-    ) as tmp:
-        tmp.write(textwrap.dedent(code))
-        tmp_path = tmp.name
+    executor = DockerCommandLineCodeExecutor(
+        image="python:3-slim",
+        timeout=90,
+        work_dir=work_dir,
+        bind_dir=work_dir,
+        extra_volumes={
+            str(PROJECT_ROOT.resolve()): {
+                "bind": str(PROJECT_ROOT.resolve()),
+                "mode": "ro",
+            }
+        },
+        delete_tmp_files=True,
+    )
+    await executor.start()
 
-    try:
-        result = subprocess.run(
-            [sys.executable, tmp_path],
-            cwd=PROJECT_ROOT,   # Keep ./workspace/... paths aligned with validator/logs
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        return {
-            "success": result.returncode == 0,
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "error": None if result.returncode == 0 else result.stderr.strip(),
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            "success": False,
-            "stdout": "",
-            "stderr": "",
-            "error": f"Timed out after {timeout}s.",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "stdout": "",
-            "stderr": "",
-            "error": str(e),
-        }
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
+    agent = CodeExecutorAgent(
+        "CodeExecutorAgent",
+        code_executor=executor,
+        model_client=model_client,
+        max_retries_on_error=2,  # auto-retry failed code (e.g. missing module → rewrite with stdlib)
+        description="Execute Python or shell code in Docker. Use for DB creation, data processing, multi-artifact tasks.",
+        system_message=(
+            "One ```python``` or ```sh``` code block per task. Stdlib only (csv, sqlite3, json, os, math). NO pandas/numpy.\n"
+            f"Read-only project: {PROJECT_ROOT.resolve()}. Writable dir: {CONTAINER_RUNTIME_DIR} (host: {work_dir.resolve()}).\n"
+            f"IMPORTANT: Write ALL files directly to {CONTAINER_RUNTIME_DIR}/<filename>. Do NOT create subdirectories.\n"
+            "Do only the immediate task. Inspect real files before assuming schema. No destructive commands (rm, mv, sudo, curl, wget).\n"
+            "CSV-to-SQLite: one script, use real headers, infer types (REAL/INTEGER not TEXT), drop+recreate if rerunning.\n"
+            f"Print created files as: HOST_PATH: {work_dir.resolve()}/<filename>\n"
+            "Final response: short summary + HOST_PATH lines. On failure: start with 'ERROR:' and describe the real issue."
+        ),
+        supported_languages=["python", "sh", "bash", "shell"],
+        approval_func=_approval_func,
+    )
+    return AgentTool(agent, return_value_as_last_message=True), executor

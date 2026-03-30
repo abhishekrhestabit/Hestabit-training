@@ -1,1 +1,0 @@
-SCHEMA = 'CREATE TABLE patients (id INTEGER PRIMARY KEY, name TEXT, age INTEGER);'

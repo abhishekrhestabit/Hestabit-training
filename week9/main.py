@@ -1,56 +1,35 @@
 import asyncio
-import pandas as pd
 import os
-from typing import List
+import pandas as pd
+
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination
-from autogen_ext.models.ollama import OllamaChatCompletionClient
-from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.messages import TextMessage
+from autogen_core.model_context import BufferedChatCompletionContext
+from autogen_core.models import UserMessage
 
-def get_research_agent(model_client, model_context):
-    return AssistantAgent(
-        name="researcher",
-        model_client=model_client,
-        model_context=model_context,
-        system_message="You are a data researcher. Analyze provided CSV metrics to identify trends, outliers, and data structures."
-    )
-
-def get_summarizer_agent(model_client, model_context):
-    return AssistantAgent(
-        name="summarizer",
-        model_client=model_client,
-        model_context=model_context,
-        system_message="You are a summarizer. Condense analytical insights into concise, actionable summaries for the user."
-    )
-
-def get_answer_agent(model_client, model_context):
-    return AssistantAgent(
-        name="answerer",
-        model_client=model_client,
-        model_context=model_context,
-        system_message="You are an expert communicator. Answer user questions directly based on the data analysis performed by your team."
-    )
+from agents.answer_agent import get_answer_agent
+from agents.research_agent import get_research_agent
+from agents.summarizer_agent import get_summarizer_agent
+from config import describe_active_model, get_model_client
 
 def load_csv_data(file_path: str):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The file {file_path} was not found.")
-    
+
     df = pd.read_csv(file_path)
+    describe_frame = df.describe(include="all").fillna("N/A").head(8)
     summary = (
         f"DATASET METADATA:\n"
         f"- Columns: {list(df.columns)}\n"
         f"- Row Count: {len(df)}\n"
         f"- Column Types:\n{df.dtypes.to_string()}\n"
-        f"- Descriptive Stats (Sample):\n{df.describe().iloc[[0, 1, 3, 7]].to_string()}"
+        f"- Descriptive Stats (Sample):\n{describe_frame.to_string()}"
     )
     return summary
 
+
 async def main():
-    model_client = OllamaChatCompletionClient(
-        model="qwen2.5:3b", 
-        model_info={"vision": False, "function_calling": True, "json_output": True}
-    )
+    model_client = get_model_client()
 
     file_path = input("Enter the path to your CSV file: ").strip()
     try:
@@ -59,12 +38,14 @@ async def main():
         print(f"\n[ERROR] Failed to load CSV: {e}")
         return
 
-    system_msg = TextMessage(content=f"You have access to the following CSV metadata:\n{csv_metadata}", source="system")
-    
-    from autogen_agentchat.base import BufferedChatCompletionContext
-    context = BufferedChatCompletionContext(buffer_size=15)
-    await context.add_message(system_msg)
-    
+    dataset_context = UserMessage(
+        content=f"You have access to the following CSV metadata:\n{csv_metadata}",
+        source="dataset",
+    )
+
+    context = BufferedChatCompletionContext(buffer_size=10)
+    await context.add_message(dataset_context)
+
     researcher = get_research_agent(model_client, context)
     summarizer = get_summarizer_agent(model_client, context)
     answerer = get_answer_agent(model_client, context)
@@ -75,6 +56,7 @@ async def main():
         termination_condition=termination
     )
 
+    print(f"\n[SYSTEM] Active model: {describe_active_model()}")
     print("\n[SYSTEM] CSV metadata ingested into agent context.")
 
     while True:

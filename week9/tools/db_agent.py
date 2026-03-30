@@ -1,175 +1,126 @@
-"""
-tools/db_agent.py
-─────────────────────────────────────────────────────────────────
-SQLite database utilities for the pipeline.
+from __future__ import annotations
 
-Used directly by day3_pipeline.py — not via AutoGen agents.
-
-Public API (what the pipeline calls):
-    inspect_schema(db_path)           → str
-    query_database(sql, db_path)      → str
-    create_sample_sales_db(db_path)   → str  (demo data setup)
-─────────────────────────────────────────────────────────────────
-"""
-
+import json
 import sqlite3
 from pathlib import Path
+from urllib.parse import quote
+
+from autogen_agentchat.agents import AssistantAgent
+from typing_extensions import Annotated
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+READ_ONLY_PREFIXES = ("select", "with", "pragma", "explain")
 
 
-# ─────────────────────────────────────────
-#  Default DB path
-# ─────────────────────────────────────────
-
-DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "agent_store.db"
-
-
-# ─────────────────────────────────────────
-#  Internal helpers
-# ─────────────────────────────────────────
-
-def _connect(db_path: str | None = None) -> sqlite3.Connection:
-    path = Path(db_path) if db_path else DEFAULT_DB
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+def _resolve_path(path: str) -> Path:
+    candidate = Path(path).expanduser()
+    if not candidate.is_absolute():
+        candidate = (PROJECT_ROOT / candidate).resolve()
+    else:
+        candidate = candidate.resolve()
+    return candidate
 
 
-def _execute_sql(query: str, params: tuple = (),
-                 db_path: str | None = None) -> dict:
-    """
-    Run any SQL statement.
-    Returns {"success": bool, "rows": [...], "rowcount": int, "error": str|None}
-    """
-    conn = None
-    try:
-        conn = _connect(db_path)
-        cur  = conn.cursor()
-        cur.execute(query, params)
-        conn.commit()
-        if query.strip().upper().startswith("SELECT"):
-            rows = [dict(r) for r in cur.fetchall()]
-            return {"success": True, "rows": rows,
-                    "rowcount": len(rows), "error": None}
-        return {"success": True, "rows": [],
-                "rowcount": cur.rowcount, "error": None}
-    except Exception as e:
-        return {"success": False, "rows": [], "rowcount": 0, "error": str(e)}
-    finally:
-        if conn:
-            conn.close()
+def _connect_read_only(db_path: Path) -> sqlite3.Connection:
+    uri = f"file:{quote(str(db_path))}?mode=ro"
+    return sqlite3.connect(uri, uri=True)
 
 
-# ─────────────────────────────────────────
-#  Public API — called by the pipeline
-# ─────────────────────────────────────────
-
-def inspect_schema(db_path: str | None = None) -> str:
-    """
-    Return a detailed schema of all user tables: columns, types, and sample rows.
-    Skips internal SQLite tables (sqlite_*).
-    The SQL generator uses this to write accurate queries.
-    """
-    tables = _execute_sql(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-        db_path=db_path,
-    )
-    if not tables["success"]:
-        return f"❌ Schema error: {tables['error']}"
-    if not tables["rows"]:
-        return "ℹ️ Database is empty (no user tables found)."
-
-    lines = ["DATABASE SCHEMA", "=" * 40]
-    for row in tables["rows"]:
-        table   = row["name"]
-        cols    = _execute_sql(f"PRAGMA table_info({table})", db_path=db_path)
-        count   = _execute_sql(f"SELECT COUNT(*) as n FROM {table}", db_path=db_path)
-        sample  = _execute_sql(f"SELECT * FROM {table} LIMIT 3", db_path=db_path)
-
-        n_rows = count["rows"][0]["n"] if count["rows"] else "?"
-        lines.append(f"\nTable: {table}  ({n_rows} rows total)")
-        lines.append("Columns:")
-        for col in cols["rows"]:
-            pk  = " PRIMARY KEY" if col.get("pk") else ""
-            lines.append(f"  {col['name']}  {col['type']}{pk}")
-
-        if sample["rows"]:
-            lines.append("Sample rows:")
-            for r in sample["rows"]:
-                lines.append("  " + ", ".join(f"{k}={v}" for k, v in r.items()))
-
-    lines.append("\n" + "=" * 40)
-    return "\n".join(lines)
+def _validate_read_only_query(query: str) -> str | None:
+    statement = query.strip().rstrip(";")
+    if not statement:
+        return "Query cannot be empty."
+    if not statement.lower().startswith(READ_ONLY_PREFIXES):
+        return "Only read-only SQL is allowed. Use SELECT, WITH, PRAGMA, or EXPLAIN."
+    return None
 
 
-def query_database(sql: str, db_path: str | None = None) -> str:
-    """
-    Execute a SQL query and return results as a formatted string.
+async def list_sqlite_tables(
+    db_path: Annotated[str, "Absolute path or project-relative path to a SQLite database file."],
+) -> str:
+    """List all user tables in a SQLite database."""
+    path = _resolve_path(db_path)
+    if not path.exists():
+        return f"Database not found: {path}"
 
-    For SELECT: returns column headers + all rows.
-    For INSERT/UPDATE/DELETE: returns rows affected count.
-    Returns an error string starting with ❌ on failure.
-    """
-    result = _execute_sql(sql, db_path=db_path)
-    if not result["success"]:
-        return f"❌ SQL Error: {result['error']}"
-
-    if result["rows"]:
-        header   = " | ".join(result["rows"][0].keys())
-        sep      = "─" * len(header)
-        rows_str = "\n".join(
-            " | ".join(str(v) for v in r.values())
-            for r in result["rows"]
+    with _connect_read_only(path) as connection:
+        cursor = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
         )
-        return (
-            f"✅ Query OK — {result['rowcount']} row(s)\n\n"
-            f"{header}\n{sep}\n{rows_str}"
-        )
-    return f"✅ Query OK — {result['rowcount']} row(s) affected."
+        tables = [row[0] for row in cursor.fetchall()]
+
+    if not tables:
+        return f"No user tables found in {path}"
+    return f"Database: {path}\nTables:\n" + "\n".join(f"- {table}" for table in tables)
 
 
-# ─────────────────────────────────────────
-#  Demo data helper (called from pipeline setup)
-# ─────────────────────────────────────────
+async def describe_sqlite_table(
+    db_path: Annotated[str, "Absolute path or project-relative path to a SQLite database file."],
+    table_name: Annotated[str, "The table name to describe."],
+) -> str:
+    """Describe the columns of a SQLite table."""
+    path = _resolve_path(db_path)
+    if not path.exists():
+        return f"Database not found: {path}"
 
-def create_sample_sales_db(db_path: str | None = None) -> str:
-    """Create a sample sales.db for demos. Idempotent."""
-    _execute_sql("""
-        CREATE TABLE IF NOT EXISTS sales (
-            id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            product TEXT    NOT NULL,
-            region  TEXT    NOT NULL,
-            amount  REAL    NOT NULL,
-            units   INTEGER NOT NULL,
-            month   TEXT    NOT NULL
-        )
-    """, db_path=db_path)
+    safe_table = table_name.replace('"', '""')
+    with _connect_read_only(path) as connection:
+        cursor = connection.execute(f'PRAGMA table_info("{safe_table}")')
+        rows = cursor.fetchall()
 
-    rows = [
-        ("Widget A", "North", 15000, 300, "Jan"),
-        ("Widget B", "South", 22000, 440, "Jan"),
-        ("Widget A", "East",  18000, 360, "Feb"),
-        ("Widget C", "West",  9500,  190, "Feb"),
-        ("Widget B", "North", 31000, 620, "Mar"),
-        ("Widget A", "South", 27000, 540, "Mar"),
-        ("Widget C", "East",  12000, 240, "Apr"),
-        ("Widget B", "West",  19500, 390, "Apr"),
-        ("Widget A", "North", 33000, 660, "May"),
-        ("Widget C", "South", 8500,  170, "May"),
+    if not rows:
+        return f"Table '{table_name}' was not found in {path}"
+
+    rendered = [
+        f"- {row[1]} | type={row[2] or 'UNKNOWN'} | not_null={bool(row[3])} | pk={bool(row[5])}"
+        for row in rows
     ]
-    conn = None
-    try:
-        conn = _connect(db_path)
-        conn.executemany(
-            "INSERT OR IGNORE INTO sales (product,region,amount,units,month) "
-            "VALUES (?,?,?,?,?)",
-            rows,
-        )
-        conn.commit()
-    finally:
-        if conn:
-            conn.close()
+    return f"Database: {path}\nTable: {table_name}\nColumns:\n" + "\n".join(rendered)
 
-    target = db_path or str(DEFAULT_DB)
-    return f"✅ Sample sales DB ready: {target} ({len(rows)} rows)"
+
+async def query_sqlite(
+    db_path: Annotated[str, "Absolute path or project-relative path to a SQLite database file."],
+    query: Annotated[str, "A read-only SQL query."],
+    limit: Annotated[int, "Maximum number of rows to return."] = 25,
+) -> str:
+    """Run a read-only SQL query against a SQLite database and return a JSON preview."""
+    path = _resolve_path(db_path)
+    if not path.exists():
+        return f"Database not found: {path}"
+
+    error = _validate_read_only_query(query)
+    if error:
+        return error
+
+    with _connect_read_only(path) as connection:
+        cursor = connection.execute(query)
+        columns = [description[0] for description in cursor.description] if cursor.description else []
+        rows = cursor.fetchmany(limit)
+
+    records = [dict(zip(columns, row)) for row in rows]
+    return (
+        f"Database: {path}\n"
+        f"Returned rows: {len(records)} (showing up to {limit})\n"
+        f"Columns: {columns}\n"
+        f"Rows:\n{json.dumps(records, indent=2, default=str)}"
+    )
+
+
+def create_db_agent(model_client) -> AssistantAgent:
+    return AssistantAgent(
+        name="DatabaseAgent",
+        description="Accepts one plain-English task string. Handles SQLite schema inspection and read-only SQL analysis.",
+        model_client=model_client,
+        tools=[list_sqlite_tables, describe_sqlite_table, query_sqlite],
+        system_message=(
+            "You are the database specialist for a local AutoGen workflow. "
+            "You are called through AgentTool, so the incoming task is always a single plain-English string. "
+            "Use your tools to inspect SQLite databases and run read-only SQL queries. "
+            "Prefer schema inspection before querying. "
+            "Never attempt writes, inserts, updates, or deletes. "
+            "Your visible result after tool use is the LAST tool result, so make the last tool call the one that returns the actual schema details or query answer."
+        ),
+        reflect_on_tool_use=False,
+        tool_call_summary_format="{result}",
+        max_tool_iterations=6,
+    )

@@ -1,42 +1,39 @@
 import asyncio
-from autogen_ext.models.ollama import OllamaChatCompletionClient
-
 import sys, os
+import re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from orchestrator.planner import get_planner_agent
+from config import describe_active_model, get_model_client
 from agents.worker_agent import get_worker_agent
 from agents.reflection_agent import get_reflection_agent
 from agents.validator import get_validator_agent
 
-def get_model_client():
-    return OllamaChatCompletionClient(
-        model="qwen2.5:3b-instruct-q4_K_M",
-        model_info={
-            "vision": False,
-            "function_calling": True,
-            "json_output": True,
-            "family": "unknown",
-            "structured_output": True
-        }
-    )
-
 def parse_plan(plan_text: str) -> list[str]:
     """Extract numbered sub-tasks from planner output."""
-    lines = plan_text.strip().split("\n")
     tasks = []
-    for line in lines:
-        line = line.strip()
-        if line and line[0].isdigit() and "." in line:
-            task = line.split(".", 1)[1].strip()
-            tasks.append(task)
+    for raw_line in plan_text.strip().splitlines():
+        match = re.match(r"^\s*\d+\.\s+(.*)$", raw_line)
+        if match:
+            tasks.append(match.group(1).strip())
     return tasks
+
+
+def print_execution_tree(tasks: list[str]) -> None:
+    print("\nExecution Tree", flush=True)
+    print("User Query", flush=True)
+    print("└── Planner_Agent", flush=True)
+    for index, task in enumerate(tasks, start=1):
+        print(f"    ├── Worker_Agent_{index}: {task}", flush=True)
+    print("    └── Reflection_Agent (after parallel worker merge)", flush=True)
+    print("        └── Validator_Agent", flush=True)
 
 
 async def run_pipeline(user_query: str):
     model_client = get_model_client()
 
     # ── Step 1: Planner ──
+    print(f"\n[MODEL] Using {describe_active_model()}", flush=True)
     print("\n[1/4]  Planner is breaking down your query...", flush=True)
     planner = get_planner_agent(model_client)
     plan_response = await planner.run(task=user_query)
@@ -48,6 +45,7 @@ async def run_pipeline(user_query: str):
         return
 
     print(f"      ✔ Plan ready — {len(tasks)} sub-tasks created", flush=True)
+    print_execution_tree(tasks)
 
     # ── Step 2: Parallel Workers ──
     print(f"\n[2/4]   Running {len(tasks)} workers in parallel...", flush=True)

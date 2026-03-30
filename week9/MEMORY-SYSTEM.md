@@ -1,197 +1,67 @@
-# MEMORY-SYSTEM.md — Day 4
+# Memory System Architecture (Day 4)
 
 ## Overview
 
-Day 4 is a memory-augmented chat system demonstrating three distinct
-memory layers — each with a different purpose, storage mechanism, and
-retrieval strategy.
+This document outlines the multi-tiered memory architecture implemented for the autonomous agent system. The system uses a hybrid approach, combining short-term conversational context with persistent, retrieval-augmented long-term memory to ensure the agent maintains consistency across sessions.
 
-```
-User message
-    ↓
-RECALL  — search all 3 layers → inject relevant context into prompt
-    ↓
-RESPOND — LLM answers using message + recalled context
-    ↓
-STORE   — extract only new, non-duplicate facts → save to vector + LTM
-    ↓
-Next message
-```
+## Architecture & Components
 
----
+The memory system is divided into three primary tiers:
 
-## The Three Memory Layers
+1. Short-Term Memory (SessionMemory)
 
-### Layer 1 — Session Memory (`memory/session_memory.py`)
+- Type: In-process / RAM
 
-| Property     | Value |
-|---|---|
-| Storage      | RAM only |
-| Lifetime     | Current process — resets on exit |
-| What it stores | Every conversation turn (user + assistant) |
-| Window size  | Last 10 turns |
-| Used for     | Rolling context so the model remembers earlier turns in THIS conversation |
+- Purpose: Maintains the immediate back-and-forth conversational context.
 
-Session memory is intentionally ephemeral — exactly like any chat app.
-It does not persist to disk. When you exit, the conversation is gone.
+- Implementation: Keeps a sliding window of the last N (default: 20) messages. It automatically drops the oldest messages to prevent the LLM's context window from overflowing.
 
----
+2. Vector Memory (VectorStore)
 
-### Layer 2 — Vector Store (`memory/vector_store.py`)
+- Type: Persistent / FAISS
 
-| Property     | Value |
-|---|---|
-| Storage      | `memory/memory.faiss` + `memory/memory.json` (disk) |
-| Lifetime     | Persists across sessions |
-| What it stores | **Distilled facts only** — not raw Q&A transcripts |
-| Model        | `all-MiniLM-L6-v2` (384-dim, CPU-fast, ~80MB, downloads once) |
-| Index        | FAISS IndexFlatL2 — exact nearest-neighbour search |
-| Used for     | **Semantic recall** — find facts by *meaning*, not exact words |
+- Purpose: Enables semantic similarity search (understanding the "meaning" of a query).
 
-**Why only facts, not everything?**
-Storage is not the concern (1.5KB per vector). Search quality is.
-If raw Q&A noise like `"Q: what's your name"` fills the index,
-it crowds out real facts from the top-3 recall slots.
-Only storing distilled facts keeps search quality high.
+- Implementation: Uses sentence-transformers (default: all-MiniLM-L6-v2) to convert text into embeddings. These embeddings are indexed using FAISS (IndexFlatIP) for rapid mathematical similarity matching.
 
-**What semantic search means in practice:**
-```
-You ask:  "what do I enjoy?"
-FAISS finds: "user likes hiking"   ← 'enjoy' ≈ 'like' semantically
-             "user loves Python"   ← found even without the word 'enjoy'
-```
-FAISS cannot filter by category. It only finds by similarity.
+3. Long-Term SQL Memory (LongTermStore)
 
----
+- Type: Persistent / SQLite
 
-### Layer 3 — Long-Term DB (`memory/long_term.py` → `memory/long_term.db`)
+- Purpose: Serves as a keyword-based fallback and exact-match storage.
 
-| Property     | Value |
-|---|---|
-| Storage      | SQLite file (disk) |
-| Lifetime     | Persists across sessions |
-| What it stores | Same facts as vector store + **category tags** |
-| Schema       | `facts(id, fact, source, tags, created, accessed)` |
-| Used for     | **Structured recall** — filter by category, browse, delete |
+- Implementation: Stores facts in a lightweight local long_term.db database. It allows the system to easily retrieve facts using exact word matching (e.g., retrieving "age" when the user asks "what is my age").
 
-**Why is LTM not a duplicate of Vector Store?**
+## AutoGen Integration (FactMemory)
 
-Vector store finds by *meaning*. LTM organises by *category*.
+To make these independent databases work seamlessly with Microsoft AutoGen, they are wrapped in a FactMemory class that strictly implements AutoGen's Memory protocol:
 
-```
-"what do I enjoy?"          → Vector  (semantic — finds 'like', 'love', 'prefer')
-"show me my health facts"   → LTM     (SQL: WHERE tags='health')
-"show me my work facts"     → LTM     (SQL: WHERE tags='work')
-"anything about hiking?"    → Vector  (semantic similarity)
-```
+- add(): Saves a fact simultaneously to both FAISS and SQLite.
 
-Each fact is tagged automatically with one of:
-`personal | preference | work | health | location | knowledge | other`
+- query(): Performs a dual-search (Semantic + Keyword) and returns a deduplicated list of relevant facts.
 
----
+- update_context(): Automatically inspects the latest user message, queries the database, and injects the retrieved facts directly into the agent's prompt before generation.
 
-## How Facts Are Stored (Deduplication)
+## Agentic Execution Flow (RAG Pattern)
 
-Before storing anything, the system checks existing facts against what
-was just said. Only genuinely new, non-duplicate information is stored.
+The system operates on a Retrieval-Augmented Generation (RAG) loop combined with autonomous tool calling:
 
-```
-Session 1:  "My name is Abhishek"
-            → new fact → stores: "The user's name is Abhishek" [personal]
+New Query: The user inputs a message (e.g., "What are my hobbies?").
 
-Session 2:  "My name is Abhishek"
-            → already known → stores nothing
+Search Memory: The FactMemory.update_context() method catches the query.
 
-Session 2:  "I'm 22 years old"
-            → new fact → stores: "The user is 22 years old" [personal]
-```
+Fetch Similar Context: Both FAISS (semantic) and SQLite (keyword) are queried for relevant past facts.
 
-This mirrors how ChatGPT/Claude memory works — the system learns
-incrementally, not by appending everything every time.
+Inject in Prompt: The retrieved facts are formatted and injected invisibly into the LLM's system prompt as Relevant long-term facts:.
 
----
+Generate with Context: The agent reads the injected context and answers the user accurately.
 
-## What Each Layer Owns
+## Autonomous Fact Saving (Tool Calling)
 
-```
-Layer           Recall method           Write method
-──────────────────────────────────────────────────────────────
-SessionMemory   recall_context()        add_user() / add_assistant()
-VectorStore     recall_context(query)   store_fact(fact)
-LongTermMemory  get_as_context(kw)      store(fact, tags=[tag])
-                get_by_source(tag)      store_episode(q, a)
-```
+Instead of polluting the vector database with every casual message ("hi", "thanks"), the agent is empowered to actively manage its own memory.
 
-No shared manager class — each layer owns its own recall and store logic.
+- The Tool: The agent is provided a save_core_fact tool.
 
----
+- The Trigger: The agent's system prompt strictly instructs it: "If the user reveals a NEW important fact (name, preference, goal), you MUST call the save_core_fact tool."
 
-## File Structure
-
-```
-day4/
-├── day4_pipeline.py        ← entry point (run this)
-├── model.yaml              ← Ollama / Gemini / Groq config
-├── memory/
-│   ├── __init__.py
-│   ├── session_memory.py   ← RAM, current session
-│   ├── vector_store.py     ← FAISS semantic search, persists
-│   ├── long_term.py        ← SQLite tagged facts, persists
-│   ├── memory.faiss        ← auto-created on first run
-│   ├── memory.json         ← auto-created on first run
-│   └── long_term.db        ← auto-created on first run
-├── config/
-│   └── model_loader.py
-└── tools/
-    ├── code_executor.py
-    ├── db_agent.py
-    └── file_agent.py
-```
-
----
-
-## How to Run
-
-```bash
-cd day4
-
-# Local (Ollama)
-ollama serve
-ollama pull qwen2.5:3b-instruct-q4_K_M
-python day4_pipeline.py
-
-# Cloud (Gemini/Groq) — edit model.yaml first
-python day4_pipeline.py
-```
-
-First run auto-installs `faiss-cpu` and `sentence-transformers` (~80MB, once only).
-
----
-
-## CLI Commands
-
-| Command | What it demonstrates |
-|---|---|
-| Any message | Full recall → respond → store cycle |
-| `memory` | Shows all 3 layers: session turns, vector facts, LTM facts |
-| `recall <category>` | **LTM's unique capability** — e.g. `recall personal`, `recall work` |
-| `clear` | Wipes all memory across all 3 layers |
-| `exit` | Quit (session resets, vector + LTM persist on disk) |
-
----
-
-## Key Design Decisions
-
-**Session resets on exit** — intentional. Same as any real chat app.
-The conversation window is per-session. What persists is *what was learned*,
-not the conversation transcript.
-
-**Vector store = facts only** — storing raw Q&A inflates the index with
-noise and degrades search quality. Only distilled facts go into FAISS.
-
-**LTM = structured + tagged** — SQL lets you filter, delete, and audit
-individual facts. FAISS cannot do any of that. Both are needed.
-
-**Deduplication before storing** — the LLM checks existing facts before
-adding new ones, preventing the same fact from being stored 50 times
-across sessions.
+- The Result: The agent acts as a gatekeeper, intelligently extracting only valuable information and committing it to long-term storage, while filtering out conversational noise.

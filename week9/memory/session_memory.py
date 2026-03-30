@@ -1,136 +1,111 @@
-"""
-memory/session_memory.py
-─────────────────────────────────────────────────────────────────
-Short-term (session) memory — lives in RAM for the current run.
+from __future__ import annotations
+from typing import List
 
-Stores the full conversation as a list of turns:
-    {"role": "user"|"assistant", "content": "...", "timestamp": ...}
+from autogen_core.memory import Memory, MemoryContent, MemoryMimeType, MemoryQueryResult
+from autogen_core.models import UserMessage
 
-Resets when the process exits — intentionally ephemeral.
+from memory.vector_store import VectorStore, LongTermStore
 
-Used by Day 4 pipeline to:
-    • Build a rolling context window for the LLM
-    • Show conversation history to the user
-    • Feed summaries into long-term memory
-─────────────────────────────────────────────────────────────────
-"""
+class SessionMemory(Memory):
+    def __init__(self, max_entries: int = 20) -> None:
+        self._entries: List[MemoryContent] = []
+        self.max_entries = max_entries
 
-import time
-from dataclasses import dataclass, field
-from typing import Literal
+    async def add(self, content: MemoryContent, **_) -> None:
+        self._entries.append(content)
+        if len(self._entries) > self.max_entries:
+            self._entries.pop(0)  # drop oldest
 
+    async def query(self, query: MemoryContent, **_) -> MemoryQueryResult:
+        return MemoryQueryResult(results=list(self._entries))
 
-# ─────────────────────────────────────────────────────────────────
-#  Data structures
-# ─────────────────────────────────────────────────────────────────
-
-@dataclass
-class Turn:
-    role:      Literal["user", "assistant"]
-    content:   str
-    timestamp: float = field(default_factory=time.time)
-
-    def to_dict(self) -> dict:
-        return {
-            "role":      self.role,
-            "content":   self.content,
-            "timestamp": self.timestamp,
-        }
-
-
-# ─────────────────────────────────────────────────────────────────
-#  SessionMemory
-# ─────────────────────────────────────────────────────────────────
-
-class SessionMemory:
-    """
-    In-RAM conversation store.
-
-    Args:
-        window: Max number of turns to keep in context.
-                Older turns are dropped (but NOT deleted — they stay
-                in the full history for summarisation).
-    """
-
-    def __init__(self, window: int = 10):
-        self._turns:  list[Turn] = []
-        self._window: int        = window
-
-    # ── Write ─────────────────────────────────────────────────────
-
-    def add(self, role: Literal["user", "assistant"], content: str) -> None:
-        """Add a turn to memory."""
-        self._turns.append(Turn(role=role, content=content))
-
-    def add_user(self, content: str)      -> None: self.add("user",      content)
-    def add_assistant(self, content: str) -> None: self.add("assistant", content)
-
-    # ── Read ──────────────────────────────────────────────────────
-
-    def get_window(self) -> list[dict]:
-        """Return the last `window` turns as a list of dicts."""
-        return [t.to_dict() for t in self._turns[-self._window:]]
-
-    def get_all(self) -> list[dict]:
-        """Return the complete conversation history."""
-        return [t.to_dict() for t in self._turns]
-
-    def get_context_string(self, max_chars_per_turn: int = 500) -> str:
-        """
-        Return the last `window` turns as a plain string for prompt injection.
-        Full content is stored in memory — this caps each turn for prompt size.
-        Set max_chars_per_turn=None to return full content.
-        """
-        lines = []
-        for t in self._turns[-self._window:]:
-            prefix  = "User" if t.role == "user" else "Assistant"
-            content = t.content
-            if max_chars_per_turn and len(content) > max_chars_per_turn:
-                content = content[:max_chars_per_turn] + "... [truncated for context]"
-            lines.append(f"{prefix}: {content}")
-        return "\n".join(lines)
-
-    def recall_context(self, full: bool = False) -> str:
-        """
-        Return session context formatted for prompt injection.
-
-        full=False (default): caps each turn at 500 chars — use for new tasks
-                              where only a summary of history is needed.
-        full=True:            returns complete stored content — use for follow-up
-                              questions that reference the previous answer directly.
-        """
-        ctx = self.get_context_string(
-            max_chars_per_turn=None if full else 500
+    async def update_context(self, model_context) -> None:
+        if not self._entries:
+            return
+        lines = "\n".join(f"{i+1}. {e.content}" for i, e in enumerate(self._entries))
+        await model_context.add_message(
+            UserMessage(content=f"Session memory:\n{lines}", source="memory")
         )
-        if not ctx:
-            return ""
-        return f"── Recent conversation ──\n{ctx}"
 
-    def get_recent_user_queries(self, n: int = 5) -> list[str]:
-        """Return the last n user queries."""
-        return [
-            t.content for t in self._turns
-            if t.role == "user"
-        ][-n:]
+    async def clear(self) -> None: self._entries.clear()
+    async def close(self) -> None: self._entries.clear()
+    def __len__(self) -> int: return len(self._entries)
 
-    # ── Inspect ───────────────────────────────────────────────────
 
-    @property
-    def turn_count(self) -> int:
-        return len(self._turns)
+class FactMemory(Memory):
+    """Bridges FAISS and SQLite to AutoGen's Memory Protocol."""
+    def __init__(self, vector_store: VectorStore, long_term_store: LongTermStore):
+        self.vector = vector_store
+        self.long_term = long_term_store
 
-    @property
-    def is_empty(self) -> bool:
-        return len(self._turns) == 0
+    async def add(self, content: MemoryContent, **_) -> None:
+        # Save fact to both vector store and sqlite fallback
+        self.vector.add(content.content, metadata=content.metadata)
+        self.long_term.save(content.content, metadata=content.metadata)
 
-    def clear(self) -> None:
-        """Wipe all turns (start fresh session)."""
-        self._turns.clear()
+    async def query(self, query: MemoryContent, **_) -> MemoryQueryResult:
+        seen, results = set(), []
+        
+        for hit in self.vector.search(query.content):  # 1. Semantic search
+            if hit["text"] not in seen:
+                results.append(MemoryContent(content=hit["text"], mime_type=MemoryMimeType.TEXT))
+                seen.add(hit["text"])
+                
+        for fact in self.long_term.search(query.content):  # 2. Keyword search
+            if fact not in seen:
+                results.append(MemoryContent(content=fact, mime_type=MemoryMimeType.TEXT))
+                seen.add(fact)
+                
+        return MemoryQueryResult(results=results)
 
-    def display(self) -> None:
-        """Print the full session to stdout for debugging."""
-        print(f"\n── Session Memory ({self.turn_count} turns) ──")
-        for i, t in enumerate(self._turns, 1):
-            prefix = "👤 User" if t.role == "user" else "🤖 Agent"
-            print(f"  [{i}] {prefix}: {t.content[:120]}")
-        print()
+    async def update_context(self, model_context) -> None:
+        messages = await model_context.get_messages()
+        if not messages: return
+        
+        last_msg = messages[-1].content
+        query_text = last_msg if isinstance(last_msg, str) else str(last_msg)
+        
+        # Auto-retrieve relevant long-term facts based on the last user message
+        res = await self.query(MemoryContent(content=query_text, mime_type=MemoryMimeType.TEXT))
+        if res.results:
+            facts = "\n".join(f"- {r.content}" for r in res.results)
+            await model_context.add_message(UserMessage(content=f"Relevant long-term facts:\n{facts}", source="memory"))
+
+    async def clear(self) -> None:
+        self.vector.clear()
+        self.long_term.clear()
+        
+    async def close(self) -> None: pass
+
+
+class MemorySystem:
+    def __init__(
+        self,
+        db_path:       str = "memory/long_term.db",
+        vector_dir:    str = "memory/vector_store",
+        session_limit: int = 20,
+        vector_top_k:  int = 3,
+    ) -> None:
+        self.session     = SessionMemory(max_entries=session_limit)
+        self.vector      = VectorStore(store_dir=vector_dir, top_k=vector_top_k)
+        self.long_term   = LongTermStore(db_path=db_path)
+        self.fact_memory = FactMemory(self.vector, self.long_term)  # The new memory wrapper
+
+    async def store_turn(self, role: str, text: str) -> None:
+        # Only populate session memory with general conversation turns
+        await self.session.add(MemoryContent(content=f"[{role}] {text}", mime_type=MemoryMimeType.TEXT))
+
+    async def store_fact(self, fact: str, metadata: dict | None = None) -> None:
+        # Triggered by agent tool to save explicitly requested facts
+        await self.fact_memory.add(MemoryContent(content=fact, mime_type=MemoryMimeType.TEXT, metadata=metadata or {}))
+
+    async def clear(self) -> None:
+        await self.session.clear()
+        await self.fact_memory.clear()
+
+    def stats(self) -> dict:
+        return {
+            "session_entries": len(self.session),
+            "vector_entries":  self.vector.size,
+            "long_term_facts": len(self.long_term.all_facts()),
+        }

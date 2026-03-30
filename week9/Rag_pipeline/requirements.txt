@@ -1,4 +1,0 @@
-sentence-transformers
-qdrant-client
-numpy
-torch

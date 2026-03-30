@@ -1,238 +1,302 @@
-"""
-tools/file_agent.py
-─────────────────────────────────────────────────────────────────
-File I/O utilities for the pipeline.
-
-Used directly by day3_pipeline.py.
-
-Public API:
-    read_txt(file_path)               → str
-    read_csv(file_path)               → dict  {rows, columns, count, stats}
-    read_json(file_path)              → dict  {data}
-    write_txt(file_path, text)        → str   confirmation
-    write_csv(file_path, rows)        → str   confirmation
-    read_file(file_path)              → str   smart display string (for answer gen)
-    create_sample_csv(file_path)      → str   demo data
-─────────────────────────────────────────────────────────────────
-"""
-
-import csv
-import json
-import statistics
+from __future__ import annotations
+from collections import Counter
+from html import escape
+import re
+import shutil
 from pathlib import Path
 
+import pandas as pd
+from autogen_agentchat.agents import AssistantAgent
+from typing_extensions import Annotated
 
-# ─────────────────────────────────────────────────────────────────
-#  READ functions — each returns structured data, not display text
-# ─────────────────────────────────────────────────────────────────
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RUNTIME_CODE_DIR = PROJECT_ROOT / ".runtime" / "code"
+IGNORED_DIRS = {".git", ".runtime", "__pycache__", "venv"}
+DEFAULT_FILE_LIST_LIMIT = 50
+DEFAULT_TEXT_PREVIEW_CHARS = 6000
+WORD_RE = re.compile(r"[A-Za-z0-9']+")
 
-def read_txt(file_path: str) -> str:
-    """
-    Read a plain text file (.txt, .md, .log, .py, .yaml, etc.)
-    Returns the raw text content, or an error string starting with ❌.
-    """
-    path = Path(file_path)
-    if not path.exists():
-        return f"❌ File not found: {file_path}"
-    return path.read_text(encoding="utf-8")
-
-
-def read_csv(file_path: str) -> dict:
-    """
-    Parse a CSV file into structured data.
-
-    Returns:
-        {
-            "success":  bool,
-            "rows":     list[dict],   one dict per row, keys = column names
-            "columns":  list[str],
-            "count":    int,
-            "stats":    dict,         per-column stats (min/max/mean or unique)
-            "error":    str | None,
-        }
-
-    Use this when you need the actual data (to pass to code, or insert to DB).
-    Use read_file() when you just need a display string for the final answer.
-    """
-    path = Path(file_path)
-    if not path.exists():
-        return {"success": False, "rows": [], "columns": [],
-                "count": 0, "stats": {}, "error": f"File not found: {file_path}"}
-    try:
-        with open(path, newline="", encoding="utf-8") as f:
-            reader  = csv.DictReader(f)
-            rows    = list(reader)
-            columns = list(reader.fieldnames or [])
-
-        stats = {}
-        for col in columns:
-            values = [r[col] for r in rows if r.get(col, "").strip() != ""]
-            try:
-                nums = [float(v) for v in values]
-                stats[col] = {
-                    "type":  "numeric",
-                    "count": len(nums),
-                    "min":   min(nums),
-                    "max":   max(nums),
-                    "mean":  round(statistics.mean(nums), 2),
-                    "stdev": round(statistics.stdev(nums), 2) if len(nums) > 1 else 0.0,
-                }
-            except ValueError:
-                unique = list(dict.fromkeys(values))
-                stats[col] = {
-                    "type":   "text",
-                    "count":  len(values),
-                    "unique": len(unique),
-                    "values": unique[:10],
-                }
-
-        return {"success": True, "rows": rows, "columns": columns,
-                "count": len(rows), "stats": stats, "error": None}
-    except Exception as e:
-        return {"success": False, "rows": [], "columns": [],
-                "count": 0, "stats": {}, "error": str(e)}
+# Per-query output folder — set by main.py before each graph execution
+_active_query_folder: str | None = None
 
 
-def read_json(file_path: str) -> dict:
-    """
-    Parse a JSON file.
-
-    Returns:
-        {"success": bool, "data": any, "error": str | None}
-    """
-    path = Path(file_path)
-    if not path.exists():
-        return {"success": False, "data": None,
-                "error": f"File not found: {file_path}"}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return {"success": True, "data": data, "error": None}
-    except Exception as e:
-        return {"success": False, "data": None, "error": str(e)}
+def set_query_folder(folder_name: str | None) -> None:
+    """Set the active query folder. All write_text_file / write_analysis_report calls
+    will output to .runtime/code/<folder_name>/ unless the path is already absolute."""
+    global _active_query_folder
+    _active_query_folder = folder_name
+    if folder_name:
+        (RUNTIME_CODE_DIR / folder_name).mkdir(parents=True, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────────
-#  WRITE functions — each validates its input before writing
-# ─────────────────────────────────────────────────────────────────
-
-def write_txt(file_path: str, text: str, append: bool = False) -> str:
-    """
-    Write plain text to a file. Creates parent directories automatically.
-    Set append=True to add to an existing file.
-    Returns a ✅ confirmation string.
-    """
-    path   = Path(file_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    mode   = "a" if append else "w"
-    action = "Appended to" if append else "Written"
-    with open(path, mode, encoding="utf-8") as f:
-        f.write(text)
-    return f"{action}: {file_path} ({len(text)} chars)"
+def _resolve_write_path(path: str) -> Path:
+    """Resolve a write path: redirect into .runtime/code/<query_folder>/ by default."""
+    candidate = Path(path).expanduser()
+    # If absolute path given, respect it as-is
+    if candidate.is_absolute():
+        return candidate.resolve()
+    # If query folder is active, write into .runtime/code/<folder>/
+    if _active_query_folder:
+        return (RUNTIME_CODE_DIR / _active_query_folder / candidate).resolve()
+    # Fallback: project root relative
+    return (PROJECT_ROOT / candidate).resolve()
 
 
-def write_csv(file_path: str, rows: list) -> str:
-    """
-    Write rows to a CSV file using csv.DictWriter.
-    Accepts:
-      - list of dicts:  [{"name": "Jupiter", "diameter_km": 139820}, ...]
-      - list of lists:  [["Jupiter", 139820, 95], ...]  with first row as headers
-      - list of lists without headers — columns named col_0, col_1, ...
-
-    Guarantees proper CSV escaping via DictWriter regardless of input format.
-    Returns a ✅ confirmation string, or ❌ on error.
-    """
-    if not rows:
-        return "❌ write_csv: no rows provided."
-
-    try:
-        # ── Normalise to list[dict] ───────────────────────────────
-        if isinstance(rows[0], dict):
-            dict_rows = rows
-
-        elif isinstance(rows[0], (list, tuple)):
-            # If first row looks like headers (all strings), use it as header
-            if all(isinstance(v, str) for v in rows[0]):
-                headers   = [str(h) for h in rows[0]]
-                dict_rows = [dict(zip(headers, r)) for r in rows[1:]]
-            else:
-                # No header row — auto-name columns
-                n_cols    = len(rows[0])
-                headers   = [f"col_{i}" for i in range(n_cols)]
-                dict_rows = [dict(zip(headers, r)) for r in rows]
-
-        else:
-            return f"❌ write_csv: unrecognised row format: {type(rows[0])}"
-
-        if not dict_rows:
-            return "❌ write_csv: no data rows after normalisation."
-
-        path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=dict_rows[0].keys())
-            writer.writeheader()
-            writer.writerows(dict_rows)
-
-        return (f"✅ CSV written: {file_path} "
-                f"({len(dict_rows)} rows, {len(dict_rows[0])} columns)")
-
-    except Exception as e:
-        return f"❌ write_csv failed: {e}"
+def _resolve_path(path: str) -> Path:
+    candidate = Path(path).expanduser()
+    return candidate.resolve() if candidate.is_absolute() else (PROJECT_ROOT / candidate).resolve()
 
 
-# ─────────────────────────────────────────────────────────────────
-#  DISPLAY helper — used by the answer generator and CLI output
-# ─────────────────────────────────────────────────────────────────
+def _replace_file(destination: Path, *, text: str | None = None, source: Path | None = None) -> None:
+    temp = destination.with_name(f".{destination.name}.tmp")
+    shutil.copyfile(source, temp) if source else temp.write_text(text or "", encoding="utf-8")
+    temp.replace(destination)
 
-def read_file(file_path: str) -> str:
-    """
-    Smart display reader — returns a human-readable string of the file.
-    Used by the pipeline's answer generator and CLI info output.
 
-    For structured access to CSV data, use read_csv() instead.
-    """
-    suffix = Path(file_path).suffix.lower()
+def _check_path(path: str, *, must_exist=False, must_be_file=False, write=False) -> tuple[Path, str | None]:
+    """Resolve path and return (resolved_path, error_string_or_None)."""
+    p = _resolve_path(path)
+    if write and not p.is_relative_to(PROJECT_ROOT):
+        return p, f"ERROR: Refusing to write outside project workspace: {p}"
+    if must_exist and not p.exists():
+        return p, f"ERROR: File not found: {p}"
+    if must_be_file and not p.is_file():
+        return p, f"ERROR: Not a file: {p}"
+    return p, None
 
-    if suffix == ".csv":
-        result = read_csv(file_path)
-        if not result["success"]:
-            return f"❌ {result['error']}"
 
-        rows, columns = result["rows"], result["columns"]
-        lines = [
-            f"✅ CSV: {file_path}  ({result['count']} rows × {len(columns)} cols)",
-            f"   Columns: {', '.join(columns)}", "",
-            "── Rows ──",
-        ]
-        for i, r in enumerate(rows, 1):
-            lines.append(f"  {i:>3}. " +
-                         " | ".join(f"{k}={v}" for k, v in r.items()))
-        lines.append("")
-        lines.append("── Statistics ──")
-        for col, s in result["stats"].items():
-            if s["type"] == "numeric":
-                lines.append(
-                    f"  [{col}] numeric  min={s['min']}  max={s['max']}"
-                    f"  mean={s['mean']}  stdev={s['stdev']}"
-                )
-            else:
-                lines.append(
-                    f"  [{col}] text  unique={s['unique']}  values={s['values'][:5]}"
-                )
+def _word_counts(content: str) -> list[tuple[str, int]]:
+    return sorted(Counter(w.lower() for w in WORD_RE.findall(content)).items(), key=lambda x: (-x[1], x[0]))
+
+
+async def list_files(
+    directory: Annotated[str, "Directory to inspect. Use '.' for the project root."] = ".",
+    pattern: Annotated[str, "Glob pattern e.g. '*.csv'. Use exact filename first when user names a specific file."] = "*",
+    limit: Annotated[int, "Maximum number of files to return."] = DEFAULT_FILE_LIST_LIMIT,
+) -> str:
+    """List matching files so local datasets and documents can be discovered quickly."""
+    base, err = _check_path(directory)
+    if not base.exists(): return f"ERROR: Directory not found: {base}"
+    if not base.is_dir(): return f"ERROR: Not a directory: {base}"
+
+    # Skip IGNORED_DIRS unless user explicitly navigated into one (e.g. ".runtime/code/rag")
+    inside_ignored = any(part in IGNORED_DIRS for part in base.relative_to(PROJECT_ROOT).parts) if base.is_relative_to(PROJECT_ROOT) else False
+    if inside_ignored:
+        matches = sorted(p for p in base.rglob(pattern) if p.is_file())
+    else:
+        matches = sorted(p for p in base.rglob(pattern) if p.is_file() and not any(part in IGNORED_DIRS for part in p.parts))
+    if not matches:
+        return f"ERROR: File not found: {base / pattern}" if not any(c in pattern for c in "*?[") else f"No files matched '{pattern}' in {base}"
+
+    result = [str(p) for p in matches[:limit]]
+    if len(matches) > limit:
+        result.append(f"... {len(matches) - limit} more files omitted")
+    return "\n".join(result)
+
+
+async def read_text_file(
+    path: Annotated[str, "Absolute or project-relative path to a text file."],
+    max_chars: Annotated[int, "Maximum characters to return."] = DEFAULT_TEXT_PREVIEW_CHARS,
+) -> str:
+    """Read a local text file and return a trimmed preview."""
+    p, err = _check_path(path, must_be_file=True)
+    if err: return err
+    content = p.read_text(encoding="utf-8", errors="ignore")
+    if len(content) > max_chars:
+        content = content[:max_chars] + "\n... [truncated]"
+    return f"Path: {p}\n\n{content}"
+
+
+def _summarize_csv(path: str, *, rows: int = 5, detailed: bool = False) -> str:
+    p, err = _check_path(path, must_be_file=True)
+    if err: return err
+    df = pd.read_csv(p)
+    lines = [f"Path: {p}", f"Rows: {len(df)}", f"Columns: {list(df.columns)}"]
+
+    if not detailed:
+        lines += ["Dtypes:", *[f"- {c}: {t}" for c, t in df.dtypes.items()], "", "Sample rows:", df.head(rows).to_string(index=False)]
         return "\n".join(lines)
 
-    elif suffix == ".json":
-        result = read_json(file_path)
-        if not result["success"]:
-            return f"❌ {result['error']}"
-        return (f"✅ JSON: {file_path}\n\n"
-                f"{json.dumps(result['data'], indent=2)}")
+    missing = df.isna().sum()
+    missing = missing[missing > 0]
+    if not missing.empty:
+        lines += ["Missing values:", *[f"- {c}: {n}" for c, n in missing.items()]]
 
-    else:
-        content = read_txt(file_path)
-        if content.startswith("❌"):
-            return content
-        lines_n = content.count("\n") + 1
-        return f"✅ Text: {file_path}  ({lines_n} lines)\n\n{content}"
+    num_cols = df.select_dtypes(include="number").columns
+    if len(num_cols):
+        lines += ["Numeric summary:", *[f"- {c}: min={df[c].min()}, max={df[c].max()}, mean={df[c].mean():.2f}, median={df[c].median():.2f}" for c in num_cols]]
+
+    cat_cols = df.select_dtypes(exclude="number").columns
+    if len(cat_cols):
+        lines += ["Categorical summary:", *[f"- {c}: {', '.join(f'{i}={v}' for i, v in df[c].value_counts().head(5).items())}" for c in cat_cols]]
+
+    return "\n".join(lines)
 
 
+async def inspect_csv(
+    path: Annotated[str, "Absolute or project-relative path to a CSV file."],
+    rows: Annotated[int, "Sample rows to include."] = 5,
+) -> str:
+    """Inspect a CSV: shape, columns, dtypes, and sample rows."""
+    return _summarize_csv(path, rows=rows)
+
+
+async def analyze_csv(
+    path: Annotated[str, "Absolute or project-relative path to a CSV file."],
+) -> str:
+    """Compute a compact analytical profile of a CSV."""
+    return _summarize_csv(path, detailed=True)
+
+
+async def count_words_in_text_file(
+    path: Annotated[str, "Absolute or project-relative path to a text file."],
+) -> str:
+    """Count word frequencies in a text file."""
+    p, err = _check_path(path, must_be_file=True)
+    if err: return err
+    counts = _word_counts(p.read_text(encoding="utf-8", errors="ignore"))
+    if not counts:
+        return f"Path: {p}\nThe file is empty after tokenization."
+    return f"Path: {p}\nUnique words: {len(counts)}\nWord counts:\n" + "\n".join(f"- {w}: {c}" for w, c in counts)
+
+
+async def ensure_directory(
+    path: Annotated[str, "Relative directory path to create if it does not already exist."],
+) -> str:
+    """Create a directory inside the active query folder."""
+    p = _resolve_write_path(path)
+    p.mkdir(parents=True, exist_ok=True)
+    return f"Ensured directory exists: {p}"
+
+
+async def write_word_count_distribution_svg(
+    path: Annotated[str, "Absolute or project-relative path to a text file."],
+    output_path: Annotated[str, "Project-relative output path for the SVG file."],
+    top_n: Annotated[int, "Number of most frequent words to plot."] = 15,
+) -> str:
+    """Create an SVG bar chart of the most frequent words in a text file."""
+    src, err = _check_path(path, must_be_file=True)
+    if err: return err
+    dst = _resolve_write_path(output_path)
+
+    counts = _word_counts(src.read_text(encoding="utf-8", errors="ignore"))[:max(1, top_n)]
+    if not counts: return f"ERROR: No words found in {src}"
+
+    max_count = max(c for _, c in counts)
+    W, left, top, bh, gap = 960, 180, 48, 24, 12
+    H = top + len(counts) * (bh + gap) + 40
+    scale = W - left - 100
+
+    bars = []
+    for i, (word, count) in enumerate(counts):
+        y = top + i * (bh + gap)
+        bw = max(1, int(scale * count / max_count))
+        bars += [
+            f'<text x="16" y="{y+17}" font-family="monospace" font-size="14">{escape(word)}</text>',
+            f'<rect x="{left}" y="{y}" width="{bw}" height="{bh}" rx="4" fill="#2563eb" />',
+            f'<text x="{left+bw+8}" y="{y+17}" font-family="monospace" font-size="14">{count}</text>',
+        ]
+
+    svg = "\n".join([
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">',
+        '<rect width="100%" height="100%" fill="#ffffff" />',
+        '<text x="16" y="28" font-family="monospace" font-size="18">Word Count Distribution</text>',
+        *bars, "</svg>",
+    ])
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    _replace_file(dst, text=svg + "\n")
+    return f"Wrote word-count distribution SVG to {dst}"
+
+
+async def write_text_file(
+    path: Annotated[str, "Relative output path to create or overwrite."],
+    content: Annotated[str, "Final text content. No placeholders or partial drafts."],
+) -> str:
+    """Write a final text file. Output goes to the active query folder inside .runtime/code/."""
+    p = _resolve_write_path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    _replace_file(p, text=content)
+    return f"Wrote {len(content)} characters to {p}"
+
+
+async def copy_file_to_workspace(
+    source_path: Annotated[str, "Absolute or project-relative path to source file."],
+    output_path: Annotated[str, "Relative destination path."],
+) -> str:
+    """Copy an existing file into the active query folder."""
+    src, err = _check_path(source_path, must_exist=True, must_be_file=True)
+    if err: return err
+    dst = _resolve_write_path(output_path)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    _replace_file(dst, source=src)
+    return f"Copied {src} to {dst}"
+
+
+async def write_analysis_report(
+    path: Annotated[str, "Relative path for the report file (.md or .txt)."],
+    source_path: Annotated[str, "Path to the source file being analyzed."],
+    report_markdown: Annotated[str, "Complete final markdown report to write."],
+) -> str:
+    """Write a markdown analysis report with an auto-generated source snapshot."""
+    out = _resolve_write_path(path)
+    src, err = _check_path(source_path, must_exist=True, must_be_file=True)
+    if err: return err
+    if not report_markdown.strip():
+        return "ERROR: Analysis report cannot be empty."
+
+    source_text = src.read_text(encoding="utf-8", errors="ignore")
+    # extract class/function names from source (skip for non-Python files)
+    classes_found, funcs_found = "None", "None"
+    if src.suffix == ".py":
+        cls_pat = re.compile(r'^\s*class\s+([A-Za-z_]\w*)\s*[:(]', re.MULTILINE)
+        fn_pat = re.compile(r'^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(', re.MULTILINE)
+        classes_found = ', '.join(cls_pat.findall(source_text)) or "None"
+        funcs_found = ', '.join(fn_pat.findall(source_text)) or "None"
+    snapshot = "\n".join([
+        "## Source Snapshot",
+        f"- Path: {src}",
+        f"- Approximate line count: {len(source_text.splitlines())}",
+        f"- Classes: {classes_found}",
+        f"- Functions: {funcs_found}",
+    ])
+
+    content = report_markdown.strip()
+    if "## Source Snapshot" not in content:
+        if content.startswith("#"):
+            heading, _, rest = content.partition("\n")
+            content = "\n\n".join(p for p in [heading, snapshot, rest.lstrip()] if p)
+        else:
+            content = f"# Analysis Report\n\n{snapshot}\n\n{content}"
+
+    content = content.rstrip() + "\n"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _replace_file(out, text=content)
+    return f"Wrote analysis report ({len(content)} characters) to {out}"
+
+
+def create_file_agent(model_client) -> AssistantAgent:
+    return AssistantAgent(
+        name="FileAgent",
+        description="Accepts one plain-English task string. Handles local files, directory creation, text analysis, CSV analysis, and workspace-safe file writing.",
+        model_client=model_client,
+        tools=[list_files, read_text_file, inspect_csv, analyze_csv, count_words_in_text_file,
+               ensure_directory, write_word_count_distribution_svg, write_text_file,
+               copy_file_to_workspace, write_analysis_report],
+        system_message=(
+            "You are the file specialist for a local AutoGen workflow. Tasks arrive as plain-English strings.\n"
+            "TOOLS: discover files, read text, inspect/analyze CSVs, count words, create directories, create SVG graphs, write output files.\n"
+            "DO NOT: create/populate SQLite DBs, read .db files (binary), write helper scripts for DB work — delegate those to DatabaseAgent/CodeExecutorAgent.\n"
+            "FILES: Use exact filename as pattern in list_files first. On ERROR, report it and stop — do not retry with a different path or broaden the search.\n"
+            "READ-ONLY TASKS: If the user asked to verify, inspect, analyze, summarize, preview, count, or read a file, stay read-only. Do not write, copy, or create any file unless the user explicitly asked for an output artifact.\n"
+            "DIRECTORIES: If the task is to create a folder or scaffold a new project path, use ensure_directory before writing files into it.\n"
+            "REPORTS: Use analyze_csv for summary facts, inspect_csv for schema/samples. Only use write_text_file or write_analysis_report when the task explicitly asks you to create a file.\n"
+            "GRAPHS: Use count_words_in_text_file + write_word_count_distribution_svg. Default output name: word_count_distribution.svg.\n"
+            "PATHS: Never invent output filenames for read-only tasks. If a write task does not specify a filename, ask for or infer a sensible artifact name only when file creation was explicitly requested. Never write outside the project workspace.\n"
+            "COPYING: If CodeExecutorAgent wrote files to .runtime/code, use copy_file_to_workspace to bring them into the workspace.\n"
+            "ERRORS: Any tool response starting with 'ERROR:' — stop immediately, report it, do not call more tools.\n"
+            "FINAL OUTPUT: Your visible result after tool use is the LAST tool result, so make the last tool call the one that returns the final file preview, final analysis, or write confirmation."
+        ),
+        reflect_on_tool_use=False,
+        tool_call_summary_format="{result}",
+        max_tool_iterations=6,
+    )

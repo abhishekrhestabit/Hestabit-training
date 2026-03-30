@@ -1,236 +1,331 @@
-"""
-nexus_ai/main.py  —  NEXUS AI CLI
-Run from the week9/ directory:  python nexus_ai/main.py
-"""
+from __future__ import annotations
 
-import asyncio, sys, time
+import asyncio, json, logging, sys, os
 from pathlib import Path
 
-# ── Path setup — allows importing tools/, memory/, config/ from parent ──
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Rate limiting configuration
+RATE_LIMIT_DELAY = float(os.getenv("NEXUS_RATE_LIMIT_DELAY", "2.0"))  # seconds between API calls
 
-from nexus_ai.config       import (
-    get_model_client,
-    get_runtime_model,
-    get_runtime_provider,
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
+from autogen_agentchat.ui import Console
+from autogen_core.model_context import BufferedChatCompletionContext
+
+from config import get_model_client, describe_active_model
+from memory.session_memory import MemorySystem
+from nexus_ai.config import AGENT_PROMPTS, RUNTIME_SETTINGS
+from nexus_ai.schemas import ExecutionPlan
+from tools import (
+    analyze_csv, build_code_execution_tool, copy_file_to_workspace,
+    describe_sqlite_table, inspect_csv, list_files, list_sqlite_tables,
+    query_sqlite, read_text_file, set_query_folder, write_analysis_report,
+    write_text_file,
 )
-from nexus_ai.orchestrator import NexusOrchestrator
-from nexus_ai.logger       import log
+from tools.search_tool import web_search
+
+Path("logs").mkdir(exist_ok=True)
+logging.basicConfig(filename="logs/nexus_trace.log", level=logging.INFO, format="%(asctime)s %(message)s")
+log = logging.getLogger("nexus")
+
+# Tool sets per worker type — matched to prompt descriptions
+_WORKER_TOOLS = {
+    "researcher": lambda ct: [list_files, read_text_file, inspect_csv, web_search],
+    "analyst":    lambda ct: [analyze_csv, inspect_csv, read_text_file, list_sqlite_tables,
+                              describe_sqlite_table, query_sqlite, write_text_file, write_analysis_report],
+    "coder":      lambda ct: [list_files, read_text_file, write_text_file, copy_file_to_workspace] + ([ct] if ct else []),
+}
+
+# Optimizer — file read/write for fixes
+_OPT_TOOLS = [list_files, read_text_file, write_text_file, write_analysis_report, query_sqlite]
 
 
-# ── Colours ──────────────────────────────────────────────────────
-class C:
-    RESET="\033[0m"; BOLD="\033[1m"; CYAN="\033[96m"; GREEN="\033[92m"
-    YELLOW="\033[93m"; RED="\033[91m"; GREY="\033[90m"; PURPLE="\033[35m"
-    BLUE="\033[94m"; MAGENTA="\033[95m"
+# --- JSON extraction for planner output ---
 
-def hdr(t):      print(f"\n{C.BOLD}{C.CYAN}{'─'*60}\n  {t}\n{'─'*60}{C.RESET}")
-def agent_hdr(a):print(f"\n{C.BOLD}{C.BLUE}  ── {a} ──{C.RESET}")
-def agent_out(t): print(f"  {C.GREY}{t}{C.RESET}")
-def ok(t):       print(f"  {C.GREEN}✅ {t}{C.RESET}")
-def warn(t):     print(f"  {C.YELLOW}⚠️  {t}{C.RESET}")
-def err(t):      print(f"  {C.RED}❌ {t}{C.RESET}")
-def info(t):     print(f"  {C.GREY}{t}{C.RESET}")
-def sep():       print(f"  {C.GREY}{'·'*56}{C.RESET}")
-
-
-def parse_flags(query: str) -> tuple[str, dict]:
-    """Extract /file, /db, /save flags from the query."""
-    flags     = {"file_path": None, "db_path": None, "save_to": None}
-    remaining = query
-
-    for flag, key in [("/file", "file_path"), ("/db", "db_path"), ("/save", "save_to")]:
-        if flag in remaining:
-            parts = remaining.split(flag, 1)
-            remaining = parts[0].strip()
-            after = parts[1].strip().split()
-            if after:
-                flags[key] = after[0]
-                remaining = (remaining + " " + " ".join(after[1:])).strip()
-
-    return remaining, flags
+def _extract_json(text: str) -> str:
+    """Pull first valid JSON object from LLM text."""
+    s = text.strip()
+    if s.startswith("```"):
+        lines = s.splitlines()
+        if lines[-1].strip() == "```": s = "\n".join(lines[1:-1]).strip()
+    try:
+        json.loads(s); return s
+    except json.JSONDecodeError:
+        pass
+    start = s.find("{")
+    if start == -1: raise ValueError("No JSON found")
+    depth, in_str, esc = 0, False, False
+    for i in range(start, len(s)):
+        ch = s[i]
+        if esc: esc = False; continue
+        if ch == "\\": esc = True; continue
+        if ch == '"': in_str = not in_str; continue
+        if in_str: continue
+        if ch == "{": depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                json.loads(s[start:i + 1])
+                return s[start:i + 1]
+    raise ValueError("Incomplete JSON")
 
 
-_KNOWN_EXTS = {"csv","txt","md","json","db","py","yaml","yml","log","html","htm","xlsx"}
+# --- Phase 1: Planner (runs standalone, produces JSON plan) ---
 
-def _extract_file_from_query(query: str) -> str | None:
-    """
-    Python-level file path extraction — same as Day 3.
-    Finds any file path mentioned in the query and checks if it exists.
-    Checks: exact path → root → parent root → week9/ root
-    """
-    import re, os
-    pattern = re.compile(
-        r'(?:(?:\.{1,2}/|[\w\-]+/)*)?([\w\-]+\.[a-zA-Z0-9]{1,6})\b', re.I
+async def _plan(client, query, memory, feedback=None) -> ExecutionPlan:
+    schema = json.dumps(ExecutionPlan.model_json_schema(), indent=2)
+    planner = AssistantAgent("Planner", model_client=client,
+        memory=[memory.session, memory.fact_memory],
+        system_message=f"{AGENT_PROMPTS['Planner']}\n\nSchema:\n{schema}")
+    task = f"User request:\n{query}"
+    if feedback: task += f"\n\nPrevious attempt feedback:\n{feedback}"
+    result = await planner.run(task=task)
+
+    await asyncio.sleep(RATE_LIMIT_DELAY)
+
+    raw = result.messages[-1].content
+    return ExecutionPlan.model_validate_json(_extract_json(raw if isinstance(raw, str) else str(raw)))
+
+
+# --- Phase 2: Build GraphFlow and execute ---
+
+def _build_graph(client, query, plan, memory, code_tool):
+    """Build a GraphFlow: Workers → Critic ↔ Optimizer → Validator → Reporter."""
+    agents, builder = [], DiGraphBuilder()
+    ti = RUNTIME_SETTINGS.max_tool_iterations
+    rt_path = f".runtime/code/{plan.query_folder}"
+
+    # Workers — one per plan step, chained sequentially
+    prev = None
+    for i, step in enumerate(plan.steps, 1):
+        tools = _WORKER_TOOLS[step.worker](code_tool)
+        base_prompt = AGENT_PROMPTS[step.worker.capitalize()].replace("{RT}", rt_path)
+        sys_msg = (
+            f"Step {i}: {step.title}\n"
+            f"Instructions: {step.instructions}\n"
+            f"Success: {step.success_criteria}\n"
+            f"Deliverables: {', '.join(step.deliverables)}\n\n"
+            f"{base_prompt}"
+        )
+        # Scale tool iterations: multi-file deliverables need more calls
+        step_ti = max(ti, len(step.deliverables) + 2)
+        # reflect_on_tool_use=False avoids "Reflect on tool use produced no valid text response" crashes
+        # tool_call_summary_format gives clean output without extra LLM call
+        w = AssistantAgent(f"Worker{i}_{step.worker}", model_client=client,
+                           tools=tools, system_message=sys_msg,
+                           reflect_on_tool_use=False,
+                           tool_call_summary_format="{result}",
+                           max_tool_iterations=step_ti)
+        agents.append(w)
+        builder.add_node(w)
+        if prev: builder.add_edge(prev, w)
+        prev = w
+
+    # Critic — no tools, buffered context (only sees last 5 messages)
+    critic = AssistantAgent("Critic", model_client=client,
+        system_message=AGENT_PROMPTS["Critic"],
+        model_context=BufferedChatCompletionContext(buffer_size=5))
+    agents.append(critic)
+    builder.add_node(critic, activation="any")
+    builder.add_edge(prev, critic)
+
+    # Optimizer — minimal tools, buffered context
+    opt_tools = _OPT_TOOLS + ([code_tool] if code_tool else [])
+    opt_prompt = AGENT_PROMPTS["Optimizer"].replace("{RT}", rt_path)
+    optimizer = AssistantAgent("Optimizer", model_client=client, tools=opt_tools,
+                                system_message=opt_prompt,
+                                reflect_on_tool_use=False,
+                                tool_call_summary_format="{result}",
+                                max_tool_iterations=ti,
+                                model_context=BufferedChatCompletionContext(buffer_size=5))
+    agents.append(optimizer)
+    builder.add_node(optimizer)
+
+    # Critic → Optimizer (if not approved), Optimizer → Critic (loop back)
+    builder.add_edge(critic, optimizer, condition=lambda msg: "[APPROVED]" not in str(getattr(msg, "content", "")))
+    # IMPORTANT: separate activation_group so the loop-back edge doesn't block
+    # the initial Worker→Critic edge (default "all" requires ALL edges to fire)
+    builder.add_edge(optimizer, critic, activation_group="optimizer_loop")
+
+    # Validator — no tools, buffered context
+    validator = AssistantAgent("Validator", model_client=client,
+        system_message=AGENT_PROMPTS["Validator"],
+        model_context=BufferedChatCompletionContext(buffer_size=5))
+    agents.append(validator)
+    builder.add_node(validator)
+    builder.add_edge(critic, validator, condition="[APPROVED]")
+
+    # Reporter — NO buffer, needs full conversation to give accurate final answer
+    reporter = AssistantAgent("Reporter", model_client=client,
+        memory=[memory.session, memory.fact_memory],
+        system_message=AGENT_PROMPTS["Reporter"])
+    agents.append(reporter)
+    builder.add_node(reporter)
+    builder.add_edge(validator, reporter, condition="[VALIDATED]")
+
+    builder.set_entry_point(agents[0])
+
+    return GraphFlow(
+        participants=agents, graph=builder.build(),
+        max_turns=RUNTIME_SETTINGS.max_graph_turns,
     )
-    for m in pattern.finditer(query):
-        full  = m.group(0).strip()
-        fname = m.group(1)
-        ext   = fname.rsplit(".", 1)[-1].lower()
-        if ext not in _KNOWN_EXTS:
-            continue
-        # Try to find the file — check several locations
-        root = Path(__file__).resolve().parent.parent  # week9/
-        candidates = [
-            full,
-            fname,
-            str(root / full),
-            str(root / fname),
-            str(root / "data" / fname),
-        ]
-        for c in candidates:
-            if c and os.path.exists(c):
-                return c
+
+
+def _find_message(result, source):
+    """Find last message from a given agent in the result."""
+    for msg in reversed(result.messages):
+        if getattr(msg, "source", "") == source:
+            return str(getattr(msg, "content", ""))
     return None
 
 
-async def run_cli():
-    model = get_runtime_model()
-    info(f"Provider: {get_runtime_provider().upper()} | Model: {model}")
-    info("Initialising agents...")
+def _partial_progress(result) -> str:
+    """Extract what workers completed from a partial result for replan feedback."""
+    completed, failed = [], []
+    for msg in result.messages:
+        src = getattr(msg, "source", "")
+        text = str(getattr(msg, "content", ""))[:200]
+        if not src or src == "user": continue
+        if "ERROR" in text:
+            failed.append(f"{src}: {text[:150]}")
+        else:
+            completed.append(src)
+    parts = []
+    if completed: parts.append(f"Completed: {', '.join(completed)}")
+    if failed: parts.append(f"Failed:\n" + "\n".join(failed))
+    return "\n".join(parts) or "No progress made."
 
+
+def _is_rate_limit(e: Exception) -> bool:
+    s = str(e).lower()
+    return "rate_limit" in s or "429" in s or "resource_exhausted" in s
+
+
+# --- Main runtime ---
+
+async def run_nexus(query: str, memory: MemorySystem) -> str:
+    """Outer loop: Plan → GraphFlow(Workers→Critic↔Optimizer→Validator→Reporter) → Replan if needed."""
     client = get_model_client()
-    nexus  = NexusOrchestrator(client)
-    last_trace = None
+    code_tool, executor = None, None
 
-    ok("NEXUS AI ready.\n")
+    try:
+        print(f"\n[MODEL] {describe_active_model()}")
+        feedback = None
 
+        for cycle in range(1, RUNTIME_SETTINGS.max_plan_cycles + 1):
+            # PLAN
+            print(f"\n{'=' * 50}\n[CYCLE {cycle}] Planning...\n{'=' * 50}")
+            plan = await _plan(client, query, memory, feedback)
+            print(plan.model_dump_json(indent=2))
+            log.info("Cycle %d: %d steps — %s", cycle, len(plan.steps), plan.plan_summary)
+
+            if not plan.steps:
+                feedback = "Empty plan. Create actual steps."
+                continue
+
+            # Set query folder for all file writes
+            qf = plan.query_folder
+            set_query_folder(qf)
+            log.info("Query folder: %s", qf)
+
+            # Init code executor lazily if any coder step (rebuild per query folder)
+            if any(s.worker == "coder" for s in plan.steps):
+                if executor:
+                    await executor.stop()
+                    code_tool, executor = None, None
+                try:
+                    code_tool, executor = await build_code_execution_tool(client, query_folder=qf)
+                    await asyncio.sleep(RATE_LIMIT_DELAY)
+                except Exception as e:
+                    log.warning("Code executor unavailable: %s", e)
+
+            # EXECUTE via GraphFlow
+            print(f"\n[GRAPH] Workers({len(plan.steps)}) → Critic ↔ Optimizer → Validator → Reporter")
+            team = _build_graph(client, query, plan, memory, code_tool)
+            task = f"User request:\n{query}\n\nExecution Plan:\n{plan.model_dump_json(indent=2)}"
+
+            try:
+                result = await Console(team.run_stream(task=task))
+                await asyncio.sleep(RATE_LIMIT_DELAY)
+            except Exception as e:
+                if _is_rate_limit(e):
+                    return f"Rate limit reached — please wait and retry.\n{str(e)[:200]}"
+                log.warning("Graph error cycle %d: %s", cycle, e)
+                feedback = f"Graph execution failed: {str(e)[:200]}. Try a simpler approach."
+                print(f"\n[ERROR] {str(e)[:200]}")
+                continue
+
+            stop = getattr(result, "stop_reason", None)
+            if stop:
+                log.info("Graph stop: %s", stop)
+                print(f"\n[STOP] {stop}")
+
+            # Check if Reporter produced output (= fully validated)
+            reporter_out = _find_message(result, "Reporter")
+            if reporter_out:
+                # Store completed task as long-term fact for future retrieval
+                fact = f"Query: {query}\nResult: {reporter_out[:500]}"
+                if plan.query_folder:
+                    fact += f"\nFiles: .runtime/code/{plan.query_folder}/"
+                await memory.store_fact(fact, metadata={"query": query, "folder": plan.query_folder})
+                log.info("Stored long-term fact for query: %s", query[:80])
+                return reporter_out
+
+            # Debug: show which agents spoke
+            speakers = [getattr(m, "source", "?") for m in result.messages if getattr(m, "source", "") not in ("", "user")]
+            unique_speakers = list(dict.fromkeys(speakers))
+            print(f"\n[DEBUG] Agents that spoke: {' → '.join(unique_speakers)}")
+
+            # Check if rate limit stopped the graph mid-run
+            if stop and ("rate_limit" in str(stop).lower() or "429" in str(stop)):
+                return f"Rate limit reached — please wait and retry.\n{stop}"
+
+            # Extract what worked and what didn't for replanning
+            val_msg = _find_message(result, "Validator")
+            progress = _partial_progress(result)
+            if val_msg:
+                feedback = val_msg
+            else:
+                feedback = f"Graph ended before validation.\nProgress:\n{progress}\nSimplify the plan."
+            print(f"\n[REPLAN] {feedback[:300]}")
+
+            if cycle < RUNTIME_SETTINGS.max_plan_cycles:
+                await asyncio.sleep(RATE_LIMIT_DELAY)
+
+        return f"Max cycles ({RUNTIME_SETTINGS.max_plan_cycles}) reached.\nLast feedback: {feedback}"
+    except Exception as e:
+        if _is_rate_limit(e):
+            return f"Rate limit reached — please wait and retry.\n{str(e)[:200]}"
+        raise
+    finally:
+        set_query_folder(None)
+        if executor:
+            await executor.stop()
+
+
+async def main():
+    print("=" * 60)
+    print(" NEXUS AI — Plan → Execute → Critique → Validate → Report")
+    print(" Workers: researcher, coder, analyst | Type 'exit' to quit")
+    print("=" * 60)
+    memory = MemorySystem()
     while True:
         try:
-            print(f"\n{C.BOLD}{'─'*62}{C.RESET}")
-            query = input("  You: ").strip()
+            query = input("\n[USER] ").strip()
+            if query.lower() in {"exit", "quit"}: break
+            if not query: continue
+            await memory.store_turn("user", query)
+            result = await run_nexus(query, memory)
+            print("\n" + "=" * 60)
+            print(result)
+            print("=" * 60)
+            await memory.store_turn("agent", result)
         except (EOFError, KeyboardInterrupt):
-            print("\n[Exiting NEXUS AI]"); break
-
-        if not query:
-            continue
-        if query.lower() in ("exit", "quit", "q"):
-            print("[Exiting NEXUS AI]"); break
-
-        # ── Built-in commands — never reach the pipeline ──────────
-        if query.lower() in ("clear", "/clear"):
-            if nexus.session or nexus.vector or nexus.ltm:
-                if nexus.session: nexus.session.clear()
-                if nexus.vector:  nexus.vector.clear()
-                if nexus.ltm:     nexus.ltm.clear()
-                ok("All memory cleared — session, vector store, and long-term DB.")
-            else:
-                info("Memory not available.")
-            continue
-
-        if query.lower() in ("/memory", "memory"):
-            hdr("NEXUS MEMORY STATE")
-            if nexus.session:
-                print(f"\n  {C.PURPLE}Session memory:{C.RESET} "
-                      f"{nexus.session.turn_count} turns (resets on exit)")
-                nexus.session.display()
-            if nexus.vector:
-                print(f"\n  {C.PURPLE}Vector store:{C.RESET} "
-                      f"{nexus.vector.count} entries (persists)")
-                nexus.vector.display(n=5)
-            if nexus.ltm:
-                print(f"\n  {C.PURPLE}Long-term DB:{C.RESET} "
-                      f"{nexus.ltm.count} facts (persists)")
-                nexus.ltm.display(n=5)
-            if not (nexus.session or nexus.vector or nexus.ltm):
-                info("Memory not available.")
-            continue
-
-        if query.lower() == "/trace":
-            if last_trace:
-                hdr("EXECUTION TRACE")
-                for step in last_trace:
-                    a = step["agent"]
-                    o = str(step["output"])
-                    print(f"\n  {C.BOLD}[{a}]{C.RESET}")
-                    print(f"  {C.GREY}{o[:400]}{'...' if len(o)>400 else ''}{C.RESET}")
-            else:
-                info("No trace yet.")
-            continue
-        if query.lower() == "/model":
-            info(f"Provider: {get_runtime_provider()} | Model: {get_runtime_model()}")
-            continue
-
-        # Parse explicit flags (/file, /db, /save)
-        task, flags = parse_flags(query)
-        if not task:
-            info("Please provide a task."); continue
-
-        # Auto-detect file paths mentioned in the query (like Day 3)
-        if not flags["file_path"]:
-            detected = _extract_file_from_query(task)
-            if detected:
-                flags["file_path"] = detected
-                info(f"Auto-detected file: {detected}")
-
-        # Auto-detect output file (report.md, output.txt etc in query)
-        if not flags["save_to"]:
-            import re
-            m = re.search(r'[\w./\-]+\.(?:md|txt)', task, re.I)
-            if m:
-                out_name = m.group(0)
-                # Only treat as save target if it's not the input file
-                if out_name != flags.get("file_path"):
-                    save_path = str(Path(__file__).resolve().parent.parent / out_name)
-                    flags["save_to"] = save_path
-                    info(f"Auto-save to: {save_path}")
-
-        hdr(f"NEXUS — {task[:58]}")
-
-        def on_update(step: str, content: str, output: str = ""):
-            """
-            Receives events from the orchestrator and prints them Day-3 style.
-
-            step="__output__"  → full agent output (content=agent_name, output=text)
-            step=agent_name    → status line (content=status message)
-            """
-            if step == "__output__":
-                agent_name   = content
-                agent_output = output
-                # Agent header — blue like Day 3's step()
-                print(f"\n{C.BOLD}{C.BLUE}  ┌── {agent_name} {'─'*(52-len(agent_name))}┐{C.RESET}")
-                lines = agent_output.splitlines()
-                for line in lines[:60]:
-                    print(f"{C.BLUE}  │{C.RESET} {C.GREY}{line}{C.RESET}")
-                if len(lines) > 60:
-                    print(f"{C.BLUE}  │{C.RESET} {C.GREY}... ({len(lines)-60} more lines){C.RESET}")
-                print(f"{C.BOLD}{C.BLUE}  └{'─'*54}┘{C.RESET}")
-            else:
-                # Status messages: plan list, scores, "Building...", etc.
-                icons = {
-                    "Critic": "🔍", "Optimizer": "🔧", "Validator": "✅",
-                    "Planner": "📋", "Researcher": "🔎", "Coder": "💻",
-                    "Analyst": "📊", "Reporter": "📝",
-                }
-                icon = icons.get(step, "·")
-                print(f"  {C.PURPLE}{icon} [{step}]{C.RESET} {C.GREY}{content[:120]}{C.RESET}")
-
-        try:
-            t0     = time.time()
-            result = await nexus.run(
-                task      = task,
-                file_path = flags["file_path"],
-                db_path   = flags["db_path"],
-                save_to   = flags["save_to"],
-                on_update = on_update,
-            )
-            last_trace = result["trace"]
-            duration   = time.time() - t0
-
-            print(f"\n{'─'*62}")
-            print(f"{C.BOLD}{C.CYAN}  NEXUS ANSWER{C.RESET}\n")
-            print(result["answer"])
-            print(f"\n{'─'*62}")
-            info(f"Score: {result['score']}/10 | "
-                 f"Approved: {result['approved']} | "
-                 f"Time: {duration:.1f}s | "
-                 f"Agents: {len(result['trace'])}")
-
-        except Exception as e:
-            err(f"Pipeline error: {e}")
-            log.error("Pipeline error", error=str(e))
-            import traceback; traceback.print_exc()
+            break
 
 
 if __name__ == "__main__":
-    asyncio.run(run_cli())
+    asyncio.run(main())

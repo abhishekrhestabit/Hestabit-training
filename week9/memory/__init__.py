@@ -1,6 +1,9 @@
-# memory/__init__.py
-from .session_memory import SessionMemory
-from .vector_store   import VectorStore
-from .long_term      import LongTermMemory
+from .vector_store import VectorStore, LongTermStore
+from .session_memory import SessionMemory, MemorySystem
 
-__all__ = ["SessionMemory", "VectorStore", "LongTermMemory"]
+__all__ = [
+    "VectorStore",
+    "LongTermStore",
+    "SessionMemory",
+    "MemorySystem",
+]
