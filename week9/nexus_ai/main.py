@@ -199,13 +199,18 @@ async def run_nexus(query: str, memory: MemorySystem) -> str:
 
 async def main():
     print("=" * 60 + "\n NEXUS AI — Plan → Execute → Critique → Validate → Report\n"
-          " Workers: researcher, coder, analyst | Type 'exit' to quit\n" + "=" * 60)
+          " Workers: researcher, coder, analyst\n"
+          " Type 'clear' to reset memory | 'exit' to quit\n" + "=" * 60)
     memory = MemorySystem()
     while True:
         try:
             query = input("\n[USER] ").strip()
             if query.lower() in {"exit", "quit"}: break
             if not query: continue
+            if query.lower() == "clear":
+                await memory.clear()
+                print("[MEMORY] All memory cleared (session, vector store, long-term facts).")
+                continue
             await memory.store_turn("user", query)
             result = await run_nexus(query, memory)
             print(f"\n{'='*60}\n{result}\n{'='*60}")

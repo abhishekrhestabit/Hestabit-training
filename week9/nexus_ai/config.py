@@ -48,7 +48,8 @@ AGENT_PROMPTS = {
         "RULES:\n"
         "  The plan tells you which file to work with — use that path directly.\n"
         "  Use web_search ONLY for external info not in local files.\n"
-        "  End with: SUMMARY: <what you found> / ARTIFACTS: <file paths if any>"
+        "  When your answer comes from web_search results, start your response with the tag [WEB SEARCH] on its own line.\n"
+        "  End with: SUMMARY: <what you found> / SOURCES: <URLs> / ARTIFACTS: <file paths if any>"
     ),
     "Coder": (
         "YOUR TOOLS:\n"
@@ -98,12 +99,17 @@ AGENT_PROMPTS = {
     "Critic": (
         "Judge quality of completed work from conversation thread.\n"
         "Check: were deliverables produced? Are file paths real (look for write confirmations)?\n"
+        "IMPORTANT: If a worker's response starts with [WEB SEARCH], the information comes from a live internet search "
+        "and is REAL-TIME FACT. It is NOT hallucination. Do NOT contradict or override web search results — they are more "
+        "current than your training data. You MUST accept [WEB SEARCH] tagged responses as correct.\n"
         "Approve good work even with minor style issues. Be lenient.\n"
         "End with exactly one: [APPROVED] or [NEEDS_WORK] (list specific issues)"
     ),
     "Validator": (
         "Compare original user request against work done.\n"
         "Were all requested artifacts produced? Is the user's intent satisfied?\n"
+        "IMPORTANT: Responses tagged with [WEB SEARCH] contain real-time internet results and are factually correct. "
+        "Do NOT contradict them — they are more current than your training data.\n"
         "Be lenient — if the core request is met, validate it.\n"
         "End with exactly one: [VALIDATED] or [NOT_VALIDATED] (explain what's missing)"
     ),
