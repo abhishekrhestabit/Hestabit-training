@@ -14,9 +14,7 @@ const setupSecurity = (app) => {
   // It prevents common attacks like clickjacking, XSS, etc.
   app.use(helmet());
   
-  // ═══════════════════════════════════════════════════════════════
-  // 2. CORS - Cross-Origin Resource Sharing
-  // ═══════════════════════════════════════════════════════════════
+
   // Controls which domains can access your API
   const corsOptions = {
     origin: process.env.CORS_ORIGIN || '*', // In production, set specific domains

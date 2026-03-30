@@ -23,7 +23,7 @@ const AppError = require('./utils/AppError');
     // 1. Connect to Database
     await connectDB();
 
-    // 2. Load the base Express App (from your loader)
+    // 2. Load the base Express App (from your loader) and put it into the app variable
     const app = await loadApp();
 
     app.use(requestTracing);
@@ -33,7 +33,7 @@ const AppError = require('./utils/AppError');
 
     // B. Body Parser with Limit (Day 4)
     // We explicitly set this to protect against large payloads.
-    // Note: If loadApp already does this, this line reinforces the limit.
+    // Note: loadApp already does this,but this line reinforces the limit.
     app.use(express.json({ limit: '10kb' }));
 
     // C. Mount Product Routes (Day 3)

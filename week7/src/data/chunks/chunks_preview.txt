@@ -29437,3 +29437,614 @@ virtual meeting. See our Proxy Statement for additional information.
 www .libertybroadband.com
 • • • • • • • • • • • • • • • • • • • • • • • • • •
 
+--- Chunk 1750 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 0
+Type: pdf
+Tag: document
+Start Index: 0
+Content:
+Smart  Child  Presence  Detection  in  School  
+Buses
+ 
+Problem  Statement  &  Deliverables   
+1.  Background  
+A  recent  alarming  incident  in  Noida  highlighted  a  severe  safety  gap  in  school  transport  systems:  
+a
+ 
+UKG
+ 
+student
+ 
+was
+ 
+left
+ 
+locked
+ 
+inside
+ 
+a
+ 
+school
+ 
+bus
+ 
+for
+ 
+nearly
+ 
+seven
+ 
+hours
+ 
+after
+ 
+falling
+ 
+asleep
+,
+ 
+only
+ 
+to
+ 
+be
+ 
+found
+ 
+later
+ 
+crying
+ 
+and
+ 
+overheated
+ 
+in
+ 
+the
+ 
+parked
+ 
+vehicle
+ 
+about
+ 
+25
+ 
+km
+ 
+from
+ 
+the
+ 
+school
+ 
+campus.
+ 
+This
+ 
+oversight
+ 
+caused
+ 
+immense
+ 
+distress
+ 
+to
+ 
+the
+ 
+child
+ 
+and
+ 
+parents,
+ 
+and
+ 
+raised
+ 
+serious
+ 
+concerns
+ 
+about
+ 
+existing
+ 
+bus
+ 
+safety
+ 
+protocols
+ 
+and
+ 
+checks.
+ 
+Children  left  unattended  in  buses  are  exposed  to  serious  health,  psychological,  and  
+life-threatening
+
+--- Chunk 1751 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 0
+Type: pdf
+Tag: document
+Start Index: 776
+Content:
+life-threatening
+ 
+risks.
+ 
+Manual
+ 
+checks
+ 
+by
+ 
+drivers
+ 
+or
+ 
+staff
+ 
+have
+ 
+proven
+ 
+insufficient
+ 
+to
+ 
+consistently
+ 
+prevent
+ 
+these
+ 
+dangerous
+ 
+oversights.
+ 
+ News:  Times  Of  India 
+ 
+2.  Problem  Statement  
+There  is  an  urgent  need  for  a  reliable,  automated  system  to  detect  the  presence  of  a  child  
+inside
+ 
+a
+ 
+school
+ 
+bus
+ 
+—
+ 
+especially
+ 
+after
+ 
+completion
+ 
+of
+ 
+a
+ 
+trip
+ 
+—
+ 
+and
+ 
+trigger
+ 
+timely
+ 
+alerts
+ 
+to
+ 
+relevant
+ 
+stakeholders
+ 
+before
+ 
+harm
+ 
+can
+ 
+occur
+.
+ 
+Current  practices  rely  heavily  on  manual  inspection,  which  can  fail  due  to  human  error,  fatigue,  
+or
+ 
+distraction.
+ 
+A
+ 
+technological
+ 
+solution
+ 
+must
+ 
+ensure
+ 
+that
+ 
+no
+ 
+child
+ 
+remains
+ 
+unnoticed
+ 
+inside
+ 
+a
+ 
+vehicle
+ 
+after
+ 
+the
+ 
+bus
+ 
+completes
+ 
+its
+
+--- Chunk 1752 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 0
+Type: pdf
+Tag: document
+Start Index: 1477
+Content:
+no
+ 
+child
+ 
+remains
+ 
+unnoticed
+ 
+inside
+ 
+a
+ 
+vehicle
+ 
+after
+ 
+the
+ 
+bus
+ 
+completes
+ 
+its
+ 
+route,
+ 
+irrespective
+ 
+of
+ 
+whether
+ 
+bus
+ 
+staff
+ 
+remember
+ 
+to
+ 
+check.
+ 
+ 
+3.  Core  Requirements  &  Considerations  (Merged)  
+The  proposed  solution  must  address  the  following:
+
+--- Chunk 1753 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 1
+Type: pdf
+Tag: document
+Start Index: 0
+Content:
+●  Automated  Presence  Detection:  The  system  should  accurately  detect  human  
+presence
+ 
+in
+ 
+the
+ 
+bus
+ 
+interior
+ 
+even
+ 
+when
+ 
+occupants
+ 
+are
+ 
+still
+ 
+or
+ 
+inactive
+ 
+(e.g.,
+ 
+asleep).
+ 
+ ●  Environmental  Reliability:  It  must  function  under  varying  conditions  (heat  inside  parked  
+bus,
+ 
+lighting
+ 
+changes,
+ 
+vibration,
+ 
+noise).
+ 
+ ●  Low  False  Alerts:  Minimize  incorrect  alarms  through  robust  sensing  and  intelligent  
+processing.
+ 
+ ●  Immediate  Alerts:  Trigger  multi-channel  notifications  (audible  alarm  in  bus,  
+SMS/app/in-system
+ 
+alerts
+ 
+to
+ 
+transport
+ 
+authorities,
+ 
+school
+ 
+administration,
+ 
+and
+ 
+caregivers).
+ 
+ ●  Independent  Operation:  Work  reliably  even  without  continuous  internet  —  with  fallback  
+storage
+ 
+of
+ 
+logs
+ 
+and
+
+--- Chunk 1754 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 1
+Type: pdf
+Tag: document
+Start Index: 772
+Content:
+storage
+ 
+of
+ 
+logs
+ 
+and
+ 
+delayed
+ 
+uploads.
+ 
+ ●  Retrofit  Friendly  &  Cost-Effective:  Compatible  with  existing  fleets  without  major  
+modifications;
+ 
+easy
+ 
+to
+ 
+maintain
+ 
+and
+ 
+scalable
+ 
+for
+ 
+large
+ 
+bus
+ 
+fleets.
+ 
+ 
+The  system  should  be  capable  of  detecting  the  presence  of  a  child  before  or  after  the  bus  is  
+parked,
+ 
+shut
+ 
+down,
+ 
+or
+ 
+switched
+ 
+off
+ 
+and
+ 
+must
+ 
+support
+ 
+escalation
+ 
+workflows
+ 
+if
+ 
+initial
+ 
+alerts
+ 
+go
+ 
+unacknowledged.
+ 
+ 
+4.  Deliverables  (Submission  Requirements)  
+All  solution  proposals  should  be  submitted  in  PowerPoint  (PPT)  format  and  must  include  the  
+following
+ 
+key
+ 
+components:
+ 
+A.  Proposed  System  &  Architecture  
+●  Block  diagram  of  the  solution
+
+--- Chunk 1755 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 1
+Type: pdf
+Tag: document
+Start Index: 1428
+Content:
+key
+ 
+components:
+ 
+A.  Proposed  System  &  Architecture  
+●  Block  diagram  of  the  solution  
+ ●  Detection  approach  (e.g.,  sensor  suite,  algorithms)  
+ ●  Data  flow  and  alert  mechanism  
+ 
+B.  Detection  Methodology  
+●  Sensors  and  technologies  used
+
+--- Chunk 1756 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 2
+Type: pdf
+Tag: document
+Start Index: 0
+Content:
+●  How  detection  accuracy  is  achieved  
+ ●  Strategies  to  reduce  false  positives/negatives  
+ 
+C.  Bill  of  Materials  (BOM)  
+●  Complete  list  of  hardware  parts  
+ ●  Estimated  cost  per  unit  
+ ●  Vendor  suggestions  /  part  alternatives  
+ 
+D.  Alerting  &  Notification  Strategy  
+●  Alarm  triggers  (in-bus,  external  notifications)  
+ ●  Stakeholder  escalation  plan  
+ ●  Communication  methods  (SMS,  mobile  apps,  dashboards)  
+ 
+E.  Deployment  Plan  
+●  Installation  process  
+ ●  Testing  and  validation  approach  
+ ●  Maintenance  and  calibration  recommendations  
+ 
+F.  Safety  &  Operational  Considerations  
+●  Power  backup  strategy  
+ ●  Environmental  tolerance  (heat,  dust,  vibration)  
+ ●  Privacy  considerations  (if  cameras  used)
+
+--- Chunk 1757 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 2
+Type: pdf
+Tag: document
+Start Index: 741
+Content:
+●  Privacy  considerations  (if  cameras  used)  
+ 
+ 
+5.  Expected  Outcome
+
+--- Chunk 1758 ---
+Source: /home/abhishekrai/Training/week7/src/data/raw/Smart Child Presence Detection in School Buses.pdf
+Page/Row: 3
+Type: pdf
+Tag: document
+Start Index: 0
+Content:
+The  proposed  solution  must  demonstrate  how  it  will  ensure  no  child  remains  undetected  in  
+school
+ 
+buses
+,
+ 
+increasing
+ 
+safety
+ 
+and
+ 
+reducing
+ 
+the
+ 
+risk
+ 
+of
+ 
+similar
+ 
+incidents
+ 
+in
+ 
+the
+ 
+future.
+ 
+The
+ 
+system
+ 
+should
+ 
+be
+ 
+practical,
+ 
+cost-effective,
+ 
+and
+ 
+ready
+ 
+for
+ 
+real-world
+ 
+adoption
+ 
+by
+ 
+schools
+ 
+and
+ 
+transport
+ 
+agencies.
+
