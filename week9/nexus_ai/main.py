@@ -17,8 +17,8 @@ from nexus_ai.config import AGENT_PROMPTS, RUNTIME_SETTINGS
 from nexus_ai.schemas import ExecutionPlan
 from tools import (
     analyze_csv, build_code_execution_tool, copy_file_to_workspace,
-    describe_sqlite_table, inspect_csv, list_files, list_sqlite_tables,
-    query_sqlite, read_text_file, set_query_folder, write_analysis_report,
+    describe_sqlite_table, get_source_info, inspect_csv, list_files, list_sqlite_tables,
+    query_sqlite, read_text_file, set_query_folder,
     write_text_file,
 )
 from tools.search_tool import web_search
@@ -30,10 +30,10 @@ log = logging.getLogger("nexus")
 _WORKER_TOOLS = {
     "researcher": lambda ct: [list_files, read_text_file, inspect_csv, web_search],
     "analyst":    lambda ct: [analyze_csv, inspect_csv, read_text_file, list_sqlite_tables,
-                              describe_sqlite_table, query_sqlite, write_text_file, write_analysis_report],
+                              describe_sqlite_table, query_sqlite, write_text_file, get_source_info],
     "coder":      lambda ct: [list_files, read_text_file, write_text_file, copy_file_to_workspace] + ([ct] if ct else []),
 }
-_OPT_TOOLS = [list_files, read_text_file, write_text_file, write_analysis_report, query_sqlite]
+_OPT_TOOLS = [list_files, read_text_file, write_text_file, get_source_info, query_sqlite]
 
 def _extract_json(text: str) -> str:
     s = text.strip()

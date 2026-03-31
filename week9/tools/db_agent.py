@@ -1,19 +1,22 @@
 from __future__ import annotations
-
 import json
 import sqlite3
 from pathlib import Path
 from urllib.parse import quote
-
 from autogen_agentchat.agents import AssistantAgent
 from typing_extensions import Annotated
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RUNTIME_CODE_DIR = PROJECT_ROOT / ".runtime" / "code"
 READ_ONLY_PREFIXES = ("select", "with", "pragma", "explain")
+WRITE_PREFIXES = ("insert", "update", "delete", "replace", "create", "alter")
 
 
 def _resolve_path(path: str) -> Path:
     candidate = Path(path).expanduser()
+    if str(candidate).startswith("/workspace/"):
+        rel = str(candidate)[len("/workspace/"):]
+        return (RUNTIME_CODE_DIR / rel).resolve()
     if not candidate.is_absolute():
         candidate = (PROJECT_ROOT / candidate).resolve()
     else:
@@ -81,7 +84,7 @@ async def describe_sqlite_table(
 async def query_sqlite(
     db_path: Annotated[str, "Absolute path or project-relative path to a SQLite database file."],
     query: Annotated[str, "A read-only SQL query."],
-    limit: Annotated[int, "Maximum number of rows to return."] = 25,
+    limit: Annotated[int, "Maximum number of rows to return."] = 100,
 ) -> str:
     """Run a read-only SQL query against a SQLite database and return a JSON preview."""
     path = _resolve_path(db_path)
@@ -106,18 +109,44 @@ async def query_sqlite(
     )
 
 
+async def execute_sqlite(
+    db_path: Annotated[str, "Absolute path or project-relative path to a SQLite database file."],
+    query: Annotated[str, "A write SQL statement (INSERT, UPDATE, DELETE, CREATE, ALTER, REPLACE)."],
+) -> str:
+    """Execute a write SQL statement against a SQLite database."""
+    path = _resolve_path(db_path)
+    if not path.exists():
+        return f"Database not found: {path}"
+
+    statement = query.strip().rstrip(";")
+    if not statement:
+        return "Query cannot be empty."
+    if statement.lower().startswith(READ_ONLY_PREFIXES):
+        return "Use query_sqlite for read-only queries. This tool is for write operations (INSERT, UPDATE, DELETE)."
+    if not statement.lower().startswith(WRITE_PREFIXES):
+        return f"Unsupported operation. Allowed: INSERT, UPDATE, DELETE, REPLACE, CREATE, ALTER."
+
+    try:
+        with sqlite3.connect(str(path)) as conn:
+            cursor = conn.execute(query)
+            conn.commit()
+            return f"Database: {path}\nExecuted successfully. Rows affected: {cursor.rowcount}"
+    except sqlite3.Error as e:
+        return f"Database: {path}\nSQL error: {e}"
+
+
 def create_db_agent(model_client) -> AssistantAgent:
     return AssistantAgent(
         name="DatabaseAgent",
-        description="Accepts one plain-English task string. Handles SQLite schema inspection and read-only SQL analysis.",
+        description="Accepts one plain-English task string. Handles SQLite schema inspection, SQL queries, and write operations (INSERT, UPDATE, DELETE).",
         model_client=model_client,
-        tools=[list_sqlite_tables, describe_sqlite_table, query_sqlite],
+        tools=[list_sqlite_tables, describe_sqlite_table, query_sqlite, execute_sqlite],
         system_message=(
             "You are the database specialist for a local AutoGen workflow. "
             "You are called through AgentTool, so the incoming task is always a single plain-English string. "
-            "Use your tools to inspect SQLite databases and run read-only SQL queries. "
+            "Use your tools to inspect SQLite databases, run read-only SQL queries, and execute write operations. "
             "Prefer schema inspection before querying. "
-            "Never attempt writes, inserts, updates, or deletes. "
+            "Use query_sqlite for SELECT queries. Use execute_sqlite for INSERT, UPDATE, DELETE, or other write operations. "
             "Your visible result after tool use is the LAST tool result, so make the last tool call the one that returns the actual schema details or query answer."
         ),
         reflect_on_tool_use=False,

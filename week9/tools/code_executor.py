@@ -52,6 +52,7 @@ async def build_code_execution_tool(model_client, query_folder: str | None = Non
                 "mode": "ro",
             }
         },
+        init_command="umask 0000",
         delete_tmp_files=True,
     )
     await executor.start()
@@ -68,7 +69,10 @@ async def build_code_execution_tool(model_client, query_folder: str | None = Non
             f"IMPORTANT: Write ALL files directly to {CONTAINER_RUNTIME_DIR}/<filename>. Do NOT create subdirectories.\n"
             "Do only the immediate task. Inspect real files before assuming schema. No destructive commands (rm, mv, sudo, curl, wget).\n"
             "CSV-to-SQLite: one script, use real headers, infer types (REAL/INTEGER not TEXT), drop+recreate if rerunning.\n"
-            f"Print created files as: HOST_PATH: {work_dir.resolve()}/<filename>\n"
+            f"HOST PATH REPORTING — CRITICAL: After writing any file, print its host path in EXACTLY this format:\n"
+            f"HOST_PATH: {work_dir.resolve()}/<filename>\n"
+            f"Example: writing {CONTAINER_RUNTIME_DIR}/students.db → print: HOST_PATH: {work_dir.resolve()}/students.db\n"
+            f"NEVER use the container path '{CONTAINER_RUNTIME_DIR}' in HOST_PATH lines. ALWAYS use '{work_dir.resolve()}'.\n"
             "Final response: short summary + HOST_PATH lines. On failure: start with 'ERROR:' and describe the real issue."
         ),
         supported_languages=["python", "sh", "bash", "shell"],

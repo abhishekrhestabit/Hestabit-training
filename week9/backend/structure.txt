@@ -1,8 +1,0 @@
-# Backend Directory Structure
-
-- api/
-- core/
-- database/
-- models/
-- services/
-- utils/
