@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 import os
 from pathlib import Path
-
 from autogen_agentchat.agents import ApprovalRequest, ApprovalResponse, CodeExecutorAgent
 from autogen_agentchat.tools import AgentTool
 from autogen_ext.code_executors.docker import DockerCommandLineCodeExecutor
@@ -68,6 +66,7 @@ async def build_code_execution_tool(model_client, query_folder: str | None = Non
             "IMPORTANT: If you need a package not pre-installed (pandas, numpy are available), install it first with a ```sh``` block: pip install <package>.\n"
             f"Read-only project: {PROJECT_ROOT.resolve()}. Writable dir: {CONTAINER_RUNTIME_DIR} (host: {work_dir.resolve()}).\n"
             f"IMPORTANT: The project directory is READ-ONLY. Files to modify will be copied into {CONTAINER_RUNTIME_DIR}/ by FileAgent before you run. Work on the copy at {CONTAINER_RUNTIME_DIR}/<filename>.\n"
+            f"IMPORTANT: When modifying an existing file, ALWAYS write the result back to the SAME filename at {CONTAINER_RUNTIME_DIR}/<original_filename>. NEVER create a new file with a different name (e.g. do NOT write to 'user_updated.txt' when modifying 'user.txt'). Overwrite the original in place.\n"
             f"Write ALL output files directly to {CONTAINER_RUNTIME_DIR}/<filename>. Do NOT create subdirectories.\n"
             "Do only the immediate task. Inspect real files before assuming schema. No destructive commands (rm, mv, sudo, curl, wget).\n"
             "CSV-to-SQLite: one script, use real headers, infer types (REAL/INTEGER not TEXT), drop+recreate if rerunning.\n"
