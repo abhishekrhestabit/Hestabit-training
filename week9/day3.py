@@ -58,7 +58,8 @@ async def build_day3_app():
             "- CodeExecutorAgent for approved Python calculations and analysis in Docker, when available. Pandas and numpy are pre-installed.\n\n"
             "Rules:\n"
             "- Use the exact tool names as provided: FileAgent, DatabaseAgent, and CodeExecutorAgent.\n"
-            "- Each AgentTool accepts exactly one plain-English task string in the `task` argument. Never pass JSON objects, nested dictionaries, or task schemas to an AgentTool.\n"
+            "- Each AgentTool accepts exactly one plain-English task string in the `task` argument. Never pass JSON objects, nested dictionaries, task schemas, or raw SQL to an AgentTool — always describe the task in plain English.\n"
+            "- When delegating to DatabaseAgent, always include the exact database filename (e.g. 'in user.db') in the plain-English task string. Never omit the database name.\n"
             "- Preserve the user's full intent when delegating. If the request names an input file and an output file, include both in the same delegated task.\n"
             "- Prefer a single FileAgent call for a single CSV-to-report request instead of splitting it into separate read, analyze, and write tasks.\n"
             "- For exact file reads or writes, preserve the exact path the user requested. Do not silently substitute a different file name or location.\n"
@@ -84,6 +85,8 @@ async def build_day3_app():
             "- Do not claim that a file exists unless a writing tool reported that it wrote the file.\n"
             "- If an agent reports that requested data, columns, or tables do not exist, accept that answer. Do not re-invoke the same agent hoping for a different result.\n"
             "- Never hallucinate or fabricate data. If the database schema does not contain what the user asked for, say so clearly.\n"
+            "- When the user says 'X in Y table' or 'X in the Y table', treat 'Y' as the table name and 'X' as the value to search for — do not concatenate them into a single value like 'X in Y'.\n"
+            "- When a count query returns 0 unexpectedly, always follow up by fetching distinct values from that column. If a close match exists (e.g. 'PhD' when 'PhD in Education' returned 0), re-run the count with the correct value and inform the user of the match used.\n"
             "- End with a direct final answer in clean plain text."
         ),
         reflect_on_tool_use=False,

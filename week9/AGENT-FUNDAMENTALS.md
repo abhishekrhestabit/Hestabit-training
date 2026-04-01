@@ -7,6 +7,7 @@ To build autonomous systems, we must fundamentally shift how we view LLMs:
 * **Chatbot:** A stateless, reactive interface. It takes a prompt and predicts the most statistically likely next word. It has no autonomy, memory, or goal-oriented behavior beyond the immediate reply.
 * **Pipeline:** A deterministic, hardcoded sequence of operations (e.g., Step A $\rightarrow$ Step B $\rightarrow$ Step C). Pipelines are rigid; if an edge case occurs that the developer didn't account for, the pipeline breaks.
 * **Agent:** An autonomous entity driven by an LLM that acts as a reasoning engine. It maintains a state machine and pursues goals by perceiving its environment, deciding on an action, executing it, and evaluating the result.
+from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
 
 ## 2. The Perception $\rightarrow$ Reasoning $\rightarrow$ Action Loop
 

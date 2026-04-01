@@ -146,7 +146,8 @@ def create_db_agent(model_client) -> AssistantAgent:
             "You are called through AgentTool, so the incoming task is always a single plain-English string. "
             "Use your tools to inspect SQLite databases, run read-only SQL queries, and execute write operations. "
             "Prefer schema inspection before querying. "
-            "Use query_sqlite for SELECT or any read-only queries.Use execute_sqlite for INSERT, UPDATE, DELETE, CREATE, ALTER, or other write operations. "
+            "Use query_sqlite for SELECT or any read-only queries. Use execute_sqlite for INSERT, UPDATE, DELETE, CREATE, ALTER, or other write operations. "
+            "If the task does not specify a database filename, respond immediately with: 'No database file was specified. Please include the database filename (e.g. user.db) in your request.' Do NOT guess or search for a database path. "
             "Your visible result after tool use is the LAST tool result, so make the last tool call the one that returns the actual schema details or query answer."
         ),
         reflect_on_tool_use=False,
