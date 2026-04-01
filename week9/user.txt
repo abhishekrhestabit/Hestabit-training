@@ -1,0 +1,203 @@
+1: Bachelors
+2: Masters
+3: PhD
+4: High School
+5: Associate
+101: Master
+102: PhD
+103: Bachelor
+104: Bachelor
+105: PhD
+106: Master
+107: Bachelor
+108: Master
+109: Bachelor
+110: Bachelor
+111: Bachelor
+112: Master
+113: Bachelor
+114: Bachelor
+115: PhD
+116: Master
+117: PhD
+118: PhD
+119: Bachelor
+120: Bachelor
+121: Bachelor
+122: Master
+123: Bachelor
+124: Bachelor
+125: Master
+126: Bachelor
+127: Master
+128: PhD
+129: PhD
+130: PhD
+131: PhD
+132: Master
+133: Master
+134: PhD
+135: Master
+136: Master
+137: PhD
+138: Bachelor
+139: Bachelor
+140: PhD
+141: PhD
+142: Master
+143: Master
+144: Master
+145: Bachelor
+146: Bachelor
+147: PhD
+148: Bachelor
+149: Master
+150: Bachelor
+151: Bachelor
+152: Bachelor
+153: PhD
+154: Bachelor
+155: Master
+156: Bachelor
+157: Bachelor
+158: Master
+159: Master
+160: Master
+161: PhD
+162: Bachelor
+163: Master
+164: PhD
+165: PhD
+166: Master
+167: Master
+168: Master
+169: Bachelor
+170: Bachelor
+171: Master
+172: PhD
+173: Bachelor
+174: Master
+175: Master
+176: Bachelor
+177: Master
+178: Master
+179: Master
+180: Master
+181: Master
+182: Bachelor
+183: PhD
+184: PhD
+185: Bachelor
+186: Master
+187: PhD
+188: PhD
+189: Bachelor
+190: PhD
+191: Master
+192: Bachelor
+193: Master
+194: Master
+195: Master
+196: PhD
+197: Master
+198: PhD
+199: PhD
+200: Bachelor
+1091: Master of Science
+1168: Bachelor of Science
+1281: Bachelor of Science
+1494: Associate Degree
+1560: PhD
+1653: Associate Degree
+1734: Master of Science
+1775: High School Diploma
+2062: Bachelor of Science
+2099: Master of Science
+2187: Associate Degree
+2210: Master of Science
+2523: Bachelor of Science
+2623: PhD
+3086: Master of Science
+3216: PhD
+3217: Associate Degree
+3325: Associate Degree
+3332: Associate Degree
+3360: Bachelor of Science
+3383: Master of Science
+3682: Bachelor of Science
+3704: Associate Degree
+3843: Master of Science
+3865: Master of Science
+3895: Bachelor of Science
+3904: PhD
+4123: Bachelor of Science
+4140: Master of Science
+4158: Master of Science
+4183: PhD
+4247: Bachelor of Science
+4259: PhD
+4525: Bachelor of Science
+4540: Associate Degree
+4562: Master of Science
+4774: Master of Science
+4821: Bachelor of Science
+4888: Bachelor of Science
+5314: PhD
+5318: Associate Degree
+5337: Bachelor of Science
+5679: Bachelor of Science
+5729: Master of Science
+5762: High School Diploma
+5786: Associate Degree
+5802: PhD
+5995: Bachelor of Science
+6128: Master of Science
+6340: Associate Degree
+6566: High School Diploma
+6635: PhD
+7028: Bachelor of Science
+7038: PhD
+7059: High School Diploma
+7099: Associate Degree
+7204: PhD
+7371: High School Diploma
+7463: Master of Science
+7588: Master of Science
+7599: Associate Degree
+7602: Associate Degree
+7680: Master of Science
+7773: PhD
+7797: Master of Science
+7946: Associate Degree
+8000: High School Diploma
+8007: Bachelor of Science
+8067: Bachelor of Science
+8120: Master of Science
+8125: Associate Degree
+8150: High School Diploma
+8189: Bachelor of Science
+8209: High School Diploma
+8213: High School Diploma
+8252: Associate Degree
+8311: Bachelor of Science
+8502: Master of Science
+8532: PhD
+8579: High School Diploma
+9105: High School Diploma
+9106: PhD
+9129: High School Diploma
+9233: PhD
+9270: High School Diploma
+9436: PhD
+9449: Master of Science
+9455: Associate Degree
+9541: Associate Degree
+9581: High School Diploma
+9615: Associate Degree
+9635: PhD
+9673: PhD
+9845: Associate Degree
+9876: PhD
+9898: Master of Science
+9935: Associate Degree
+9964: High School Diploma

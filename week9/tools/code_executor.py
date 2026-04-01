@@ -52,7 +52,7 @@ async def build_code_execution_tool(model_client, query_folder: str | None = Non
                 "mode": "ro",
             }
         },
-        init_command="umask 0000",
+        init_command="umask 0000 && pip install -q pandas numpy 2>/dev/null",
         delete_tmp_files=True,
     )
     await executor.start()
@@ -64,9 +64,11 @@ async def build_code_execution_tool(model_client, query_folder: str | None = Non
         max_retries_on_error=2,  # auto-retry failed code (e.g. missing module → rewrite with stdlib)
         description="Execute Python or shell code in Docker. Use for DB creation, data processing, multi-artifact tasks.",
         system_message=(
-            "One ```python``` or ```sh``` code block per task. Stdlib only (csv, sqlite3, json, os, math). NO pandas/numpy.\n"
+            "One ```python``` or ```sh``` code block per task. You may use pandas, numpy, csv, sqlite3, json, os, math.\n"
+            "IMPORTANT: If you need a package not pre-installed (pandas, numpy are available), install it first with a ```sh``` block: pip install <package>.\n"
             f"Read-only project: {PROJECT_ROOT.resolve()}. Writable dir: {CONTAINER_RUNTIME_DIR} (host: {work_dir.resolve()}).\n"
-            f"IMPORTANT: Write ALL files directly to {CONTAINER_RUNTIME_DIR}/<filename>. Do NOT create subdirectories.\n"
+            f"IMPORTANT: The project directory is READ-ONLY. Files to modify will be copied into {CONTAINER_RUNTIME_DIR}/ by FileAgent before you run. Work on the copy at {CONTAINER_RUNTIME_DIR}/<filename>.\n"
+            f"Write ALL output files directly to {CONTAINER_RUNTIME_DIR}/<filename>. Do NOT create subdirectories.\n"
             "Do only the immediate task. Inspect real files before assuming schema. No destructive commands (rm, mv, sudo, curl, wget).\n"
             "CSV-to-SQLite: one script, use real headers, infer types (REAL/INTEGER not TEXT), drop+recreate if rerunning.\n"
             f"HOST PATH REPORTING — CRITICAL: After writing any file, print its host path in EXACTLY this format:\n"

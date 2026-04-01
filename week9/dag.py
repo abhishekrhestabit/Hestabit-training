@@ -2,7 +2,7 @@ import asyncio
 import sys, os
 import re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+import json
 from orchestrator.planner import get_planner_agent
 from config import describe_active_model, get_model_client
 from agents.worker_agent import get_worker_agent
@@ -10,13 +10,16 @@ from agents.reflection_agent import get_reflection_agent
 from agents.validator import get_validator_agent
 
 def parse_plan(plan_text: str) -> list[str]:
-    """Extract numbered sub-tasks from planner output."""
-    tasks = []
-    for raw_line in plan_text.strip().splitlines():
-        match = re.match(r"^\s*\d+\.\s+(.*)$", raw_line)
-        if match:
-            tasks.append(match.group(1).strip())
-    return tasks
+    """Extract tasks from JSON planner output."""
+    try:
+        clean_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", plan_text.strip())
+        plan_data = json.loads(clean_text)
+        tasks = plan_data.get("tasks", [])
+        return [str(t) for t in tasks if t]
+    except json.JSONDecodeError as e:
+        print(f"\n[ERROR] Failed to parse Planner output as JSON: {e}")
+        print(f"Raw Output: {plan_text}")
+        return []
 
 
 def print_execution_tree(tasks: list[str]) -> None:
@@ -53,7 +56,7 @@ async def run_pipeline(user_query: str):
     async def run_worker(worker_id, task):
         worker = get_worker_agent(model_client, worker_id)
         result = await worker.run(task=task)
-        print(f"      ✔ Worker {worker_id} done — {task}", flush=True)
+        print(f"      Worker {worker_id} done — {task}", flush=True)
         return result.messages[-1].content
     
     
@@ -99,5 +102,6 @@ async def run_pipeline(user_query: str):
 if __name__ == "__main__":
     query = input("Enter your query: ").strip()
     if not query:
-        query = "Explain the applications of AI in healthcare"
-    asyncio.run(run_pipeline(query))
+        print("No query entered. Please Give a Query.")
+    else:
+        asyncio.run(run_pipeline(query))

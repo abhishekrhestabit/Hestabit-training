@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from dataclasses import dataclass
-from typing import Any
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.tools import AgentTool
@@ -14,19 +12,8 @@ from tools import (
     build_code_execution_tool,
     create_db_agent,
     create_file_agent,
+    set_query_folder,
 )
-
-@dataclass
-class Day3App:
-    model_client: object
-    orchestrator: AssistantAgent
-    code_executor: Any | None = None
-    code_execution_status: str = "disabled"
-
-    async def close(self) -> None:
-        if self.code_executor is not None:
-            await self.code_executor.stop()
-        await self.model_client.close()
 
 
 def _rule(char: str = "=", width: int = 78) -> str:
@@ -39,8 +26,9 @@ def _section(title: str, char: str = "=") -> None:
     print(_rule(char))
 
 
-async def build_day3_app() -> Day3App:
+async def build_day3_app():
     model_client = get_model_client(parallel_tool_calls=False)
+    set_query_folder("mods")
     file_agent = create_file_agent(model_client)
     db_agent = create_db_agent(model_client)
     tools = [
@@ -51,7 +39,7 @@ async def build_day3_app() -> Day3App:
     code_execution_status = "disabled"
 
     try:
-        code_tool, code_executor = await build_code_execution_tool(model_client)
+        code_tool, code_executor = await build_code_execution_tool(model_client, query_folder="mods")
         tools.append(code_tool)
         code_execution_status = "docker + approval"
     except Exception as exc:
@@ -65,9 +53,9 @@ async def build_day3_app() -> Day3App:
         system_message=(
             "You are the day 3 orchestrator for a local AutoGen workflow.\n"
             "Available tools:\n"
-            "- FileAgent for local files, CSVs, reports, and text outputs.\n"
+            "- FileAgent for local files, CSVs, reports, text outputs, and CSV modifications (adding/dropping columns with modify_csv).\n"
             "- DatabaseAgent for SQLite inspection, read-only SQL queries, and write operations (INSERT, UPDATE, DELETE) on existing databases.\n"
-            "- CodeExecutorAgent for approved Python calculations and analysis in Docker, when available.\n\n"
+            "- CodeExecutorAgent for approved Python calculations and analysis in Docker, when available. Pandas and numpy are pre-installed.\n\n"
             "Rules:\n"
             "- Use the exact tool names as provided: FileAgent, DatabaseAgent, and CodeExecutorAgent.\n"
             "- Each AgentTool accepts exactly one plain-English task string in the `task` argument. Never pass JSON objects, nested dictionaries, or task schemas to an AgentTool.\n"
@@ -77,34 +65,33 @@ async def build_day3_app() -> Day3App:
             "- If FileAgent reports an exact requested file is missing, stop and return that error. Do not ask FileAgent to keep exploring.\n"
             "- Use FileAgent for file discovery by file name, code reading, text analysis, CSV analysis, simple SVG graph generation, and any task that must create or update a workspace file.\n"
             "- If the user asks to create or populate a SQLite database from scratch, route that task to CodeExecutorAgent because it needs to generate data.\n"
-            "- If the user asks to INSERT, UPDATE, or DELETE records in an existing SQLite database, route that to DatabaseAgent which has execute_sqlite for write operations.\n"
-            "- If a single task asks to create multiple generated artifacts such as a CSV, a database, and a report, first use CodeExecutorAgent to create them inside .day3_runtime/code, then continue with FileAgent to copy the requested final files into the project workspace.\n"
+            "- If the user asks to INSERT, UPDATE, or DELETE records in an existing SQLite database with specific values or a clear SQL command, route directly to DatabaseAgent which has execute_sqlite. DatabaseAgent can handle any concrete SQL statement.\n"
+            "- Only use the CodeExecutor pipeline for vague or bulk data requests where mock/random data must be generated (e.g. 'add 1000 rows', 'fill with mock data', 'populate with random entries'). For these: Step 1 — use DatabaseAgent to inspect the schema. Step 2 — use FileAgent to copy the DB into the workspace (copy_file_to_workspace with just the filename, e.g. 'user.db'). Step 3 — use CodeExecutorAgent to modify the DB at /workspace/<filename>, generate mock data matching the real schema, and insert it. Include the exact table names, column names, and types in the CodeExecutorAgent task. Step 4 — use FileAgent's copy_file_to_workspace with the absolute project path as output_path to copy the modified DB back.\n"
+            "- If a single task asks to create multiple generated artifacts such as a CSV, a database, and a report, first use CodeExecutorAgent to create them inside .runtime/code/mods, then continue with FileAgent to copy the requested final files into the project workspace.\n"
             "- For a mixed generation task, ask CodeExecutorAgent to create every requested runtime artifact in one run, including any requested report file.\n"
-            "- When CodeExecutorAgent reports created runtime files with HOST_PATH: lines, use those exact host paths as the FileAgent source paths for copy_file_to_workspace.\n"
+            "- When CodeExecutorAgent reports created runtime files with HOST_PATH: lines, use FileAgent's copy_file_to_workspace with the absolute project path as output_path to bring those files back.\n"
             "- Prefer copying a generated report from CodeExecutorAgent over asking FileAgent to infer report contents from a SQLite .db file.\n"
-            "- For CSV summaries, markdown reports, or other file-generation tasks, stay within FileAgent unless the user explicitly asks for Python execution.\n"
+            "- For CSV modifications (adding columns, filling with mock data, transforming data): Step 1 — use FileAgent to inspect the CSV and copy it to the workspace (copy_file_to_workspace with just the filename). Step 2 — use CodeExecutorAgent to modify /workspace/<filename> and report HOST_PATH. Step 3 — use FileAgent's copy_file_to_workspace with the absolute project path as output_path to overwrite the original.\n"
+            "- For CSV summaries, markdown reports, or other read-only file-generation tasks, stay within FileAgent unless the user explicitly asks for Python execution.\n"
             "- For text files, word counts, or word-frequency graphs, prefer FileAgent unless the user explicitly asks for Python execution.\n"
             "- Use DatabaseAgent for all SQLite operations: schema inspection, queries, and data modifications on existing databases.\n"
             "- Use CodeExecutorAgent mainly when the user explicitly asks for Python or shell execution, or when database creation or coordinated multi-file generation is required.\n"
             "- Code execution requires explicit approval before each run.\n"
-            "- Code execution writes only to .day3_runtime/code. FileAgent is the only tool that writes into the project workspace.\n"
+            "- Code execution writes only to .runtime/code/mods. FileAgent is the only tool that writes into the project workspace.\n"
             "- Detailed analysis is preferred over a short generic summary unless the user explicitly asks for brevity.\n"
             "- Use the fewest tool calls needed to fully solve the task.\n"
             "- If the user has not provided a path you need, ask for it clearly.\n"
             "- Do not claim that a file exists unless a writing tool reported that it wrote the file.\n"
+            "- If an agent reports that requested data, columns, or tables do not exist, accept that answer. Do not re-invoke the same agent hoping for a different result.\n"
+            "- Never hallucinate or fabricate data. If the database schema does not contain what the user asked for, say so clearly.\n"
             "- End with a direct final answer in clean plain text."
         ),
         reflect_on_tool_use=False,
         tool_call_summary_format="{result}",
-        max_tool_iterations=3,
+        max_tool_iterations=5,
     )
 
-    return Day3App(
-        model_client=model_client,
-        orchestrator=orchestrator,
-        code_executor=code_executor,
-        code_execution_status=code_execution_status,
-    )
+    return orchestrator, model_client, code_executor, code_execution_status
 
 
 def _print_banner() -> None:
@@ -115,16 +102,18 @@ def _print_banner() -> None:
 
 
 async def run_task(task: str) -> None:
-    app = await build_day3_app()
+    orchestrator, model_client, code_executor, code_execution_status = await build_day3_app()
     try:
-        print(f"Code execution: {app.code_execution_status}")
+        print(f"Code execution: {code_execution_status}")
         _section("TASK")
         print(task)
         _section("LIVE RUN", "-")
-        await Console(app.orchestrator.run_stream(task=task), output_stats=False)
+        await Console(orchestrator.run_stream(task=task), output_stats=False)
         print(_rule("-"))
     finally:
-        await app.close()
+        if code_executor is not None:
+            await code_executor.stop()
+        await model_client.close()
 
 
 async def execute_task(task: str) -> None:

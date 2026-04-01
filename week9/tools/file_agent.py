@@ -126,12 +126,15 @@ async def write_text_file(
 # Copies a file from anywhere in the project into the active query folder workspace.
 async def copy_file_to_workspace(
     source_path: Annotated[str, "Absolute or project-relative path to source file."],
-    output_path: Annotated[str, "Relative destination path."],
+     output_path: Annotated[str, "Filename to place in the workspace folder (e.g. 'user.db'), or an absolute path to copy to a specific location."],
 ) -> str:
-    """Copy an existing file into the active query folder."""
+    """Copy a file. Relative output_path goes to the workspace folder; absolute output_path goes to that exact location."""
     src, err = _check_path(source_path, must_exist=True, must_be_file=True)
     if err: return err
     dst = _resolve_write_path(output_path)
+    # If src and dst are the same (e.g. copy-back from workspace), resolve to project root
+    if dst == src:
+        dst = (PROJECT_ROOT / Path(output_path).name).resolve()
     dst.parent.mkdir(parents=True, exist_ok=True)
     _replace_file(dst, source=src)
     return f"Copied {src} to {dst}"
