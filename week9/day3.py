@@ -38,12 +38,10 @@ async def build_day3_app():
     code_executor = None
     code_execution_status = "disabled"
 
-    try:
-        code_tool, code_executor = await build_code_execution_tool(model_client, query_folder="mods")
-        tools.append(code_tool)
-        code_execution_status = "docker + approval"
-    except Exception as exc:
-        code_execution_status = f"disabled ({exc})"
+   
+    code_tool, code_executor = await build_code_execution_tool(model_client, query_folder="mods")
+    tools.append(code_tool)
+        
 
     orchestrator = AssistantAgent(
         name="OrchestratorAgent",
@@ -150,4 +148,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-# Translates ~/ paths to absolute paths

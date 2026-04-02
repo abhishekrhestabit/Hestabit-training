@@ -68,7 +68,6 @@ class FactMemory(Memory):
     async def update_context(self, model_context) -> None:
         messages = await model_context.get_messages()
         if not messages: return
-
         last_msg = messages[-1].content
         query_text = last_msg if isinstance(last_msg, str) else str(last_msg)
 
