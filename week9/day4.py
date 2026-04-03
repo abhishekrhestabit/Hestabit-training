@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import sys
+from datetime import date
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.ui import Console
@@ -18,15 +19,26 @@ async def build_agent(mem: MemorySystem) -> AssistantAgent:
     
     # Tool for the agent to actively save facts to Vector/SQLite
     async def save_core_fact(fact: str) -> str:
-        """Save important user facts, names, or preferences to long-term memory. 
+        """Save important user facts, names, or preferences to long-term memory.
         Argument must be a single, plain string summarizing the fact."""
         await mem.store_fact(fact)
         return f"Fact successfully saved: {fact}"
 
+    # Tool to retrieve facts stored on a specific date
+    async def get_facts_by_date(date_str: str) -> str:
+        """Retrieve all facts/conversations stored on a given date.
+        Argument must be a date string in YYYY-MM-DD format (e.g. '2026-04-03').
+        Use this when the user asks about past conversations or interactions on a specific day."""
+        facts = mem.long_term.get_facts_by_date(date_str)
+        if not facts:
+            return f"No facts or conversations found for {date_str}."
+        lines = "\n".join(f"{i+1}. {f}" for i, f in enumerate(facts))
+        return f"Facts/conversations from {date_str}:\n{lines}"
+
     return AssistantAgent(
         name="MemoryAgent",
         model_client=get_model_client(),
-        tools=[save_core_fact],
+        tools=[save_core_fact, get_facts_by_date],
         memory=[mem.session, mem.fact_memory],  # Both memory tiers auto-injected
         reflect_on_tool_use=True,  # Forces agent to generate a conversational reply after using a tool
         system_message=(
@@ -36,6 +48,10 @@ async def build_agent(mem: MemorySystem) -> AssistantAgent:
             "you MUST call the `save_core_fact` tool to commit it to long-term memory. "
             "DO NOT save facts that are already listed in your 'Relevant long-term facts' context. "
             "Always acknowledge the user naturally after saving their information.\n"
+            f"Today's date is {date.today().isoformat()}. "
+            "When the user asks about past conversations, interactions, or what was discussed on a "
+            "specific day (including 'today'), call the `get_facts_by_date` tool with the appropriate "
+            "YYYY-MM-DD date string to retrieve the stored facts for that date.\n"
             "JSON FORMATTING RULES: When calling tools, ensure your arguments are valid JSON. "
             "NEVER add a trailing comma or extra closing braces '}'. "
             "Example of a valid tool call argument: {\"fact\": \"User enjoys going to the gym\"}"

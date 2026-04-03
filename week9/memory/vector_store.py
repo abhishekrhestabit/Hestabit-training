@@ -2,17 +2,9 @@ from __future__ import annotations
 import json, pickle, sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
-
+import faiss
+from sentence_transformers import SentenceTransformer
 import numpy as np
-
-
-def _deps():
-    try:
-        import faiss
-        from sentence_transformers import SentenceTransformer
-        return faiss, SentenceTransformer
-    except ImportError:
-        raise ImportError("pip install faiss-cpu sentence-transformers")
 
 
 class VectorStore:
@@ -23,10 +15,8 @@ class VectorStore:
         top_k:      int   = 3,
         threshold:  float = 0.30,
     ) -> None:
-        faiss, SentenceTransformer = _deps()
-        import faiss as _faiss
-
-        self._faiss    = _faiss
+        
+        self.faiss    = faiss
         self.top_k     = top_k
         self.threshold = threshold
         self._dir      = Path(store_dir)
@@ -40,11 +30,11 @@ class VectorStore:
 
     def _load(self):
         if self._idx_path.exists() and self._met_path.exists():
-            return self._faiss.read_index(str(self._idx_path)), pickle.loads(self._met_path.read_bytes())
-        return self._faiss.IndexFlatIP(self._dim), []  # cosine via normalized IP
+            return self.faiss.read_index(str(self._idx_path)), pickle.loads(self._met_path.read_bytes())
+        return self.faiss.IndexFlatIP(self._dim), []  # cosine via normalized IP
 
     def _save(self):
-        self._faiss.write_index(self._index, str(self._idx_path))
+        self.faiss.write_index(self._index, str(self._idx_path))
         self._met_path.write_bytes(pickle.dumps(self._meta))
 
     def _embed(self, text: str) -> np.ndarray:
@@ -106,6 +96,15 @@ class LongTermStore:
             rows = c.execute(
                 f"SELECT content FROM facts WHERE {clause} ORDER BY id DESC LIMIT {top_k}",
                 [f"%{kw}%" for kw in kws],
+            ).fetchall()
+        return [r[0] for r in rows]
+
+    def get_facts_by_date(self, date_str: str) -> list[str]:
+        """Return all facts created on a given date (YYYY-MM-DD)."""
+        with sqlite3.connect(self.db_path) as c:
+            rows = c.execute(
+                "SELECT content FROM facts WHERE DATE(created_at) = ? ORDER BY id",
+                (date_str,),
             ).fetchall()
         return [r[0] for r in rows]
 
