@@ -1,8 +1,3 @@
-"""
-NEXUS AI — Streamlit UI (thin layer over CLI)
-Run: streamlit run Day5/ui.py
-"""
-
 import sys
 import os
 import asyncio
