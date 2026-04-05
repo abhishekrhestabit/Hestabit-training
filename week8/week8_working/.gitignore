@@ -1,0 +1,14 @@
+# Python environment
+/venv
+
+# Quantized models (large binary files)
+*/model-q8_0.gguf
+*/REAL-model-int4
+*/REAL-model-int8
+*/model-q4_k_m.gguf
+
+
+*.bin
+*.safetensors
+
+

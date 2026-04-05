@@ -1,14 +1,16 @@
 # Python environment
-/venv
+venv/
+__pycache__/
+*.pyc
 
 # Quantized models (large binary files)
-*/model-q8_0.gguf
-*/REAL-model-int4
-*/REAL-model-int8
-*/model-q4_k_m.gguf
-
-
 *.bin
 *.safetensors
 
-
+# Large model directories
+**/REAL-model-int4/
+**/REAL-model-int8/
+Day3/quantized/model-q8_0.gguf
+Day3/quantized/model-q4_k_m.gguf
+# OS files
+.DS_Store
