@@ -1,0 +1,15 @@
+{
+    "selected_features": [
+        "Age",
+        "Fare",
+        "FamilySize",
+        "Fare_Log",
+        "Fare_Per_Person",
+        "Age_Class",
+        "Age_Fare",
+        "Age_Sq",
+        "Fare_Sq",
+        "Sex_male",
+        "Pclass_3"
+    ]
+}
